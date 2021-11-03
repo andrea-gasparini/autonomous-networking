@@ -1,17 +1,19 @@
 
 import numpy as np
+from typing import List
+from src.entities.uav_entities import DataPacket, Drone
 from src.utilities import utilities as util
 from src.routing_algorithms.BASE_routing import BASE_routing
 from matplotlib import pyplot as plt
 
 class AIRouting(BASE_routing):
-    def __init__(self, drone, simulator):
+    def __init__(self, drone: Drone, simulator):
         BASE_routing.__init__(self, drone, simulator)
         # random generator
         self.rnd_for_routing_ai = np.random.RandomState(self.simulator.seed)
         self.taken_actions = {}  #id event : (old_action)
 
-    def feedback(self, drone, id_event, delay, outcome):
+    def feedback(self, drone: Drone, id_event, delay, outcome):
         """ return a possible feedback, if the destination drone has received the packet """
         # Packets that we delivered and still need a feedback
         print(self.drone.identifier, "----------", self.taken_actions)
@@ -28,7 +30,7 @@ class AIRouting(BASE_routing):
             action = self.taken_actions[id_event]
             del self.taken_actions[id_event]
 
-    def relay_selection(self, opt_neighbors, pkd):
+    def relay_selection(self, opt_neighbors: List[Drone], pkd: DataPacket):
         """ arg min score  -> geographical approach, take the drone closest to the depot """
 
         # Only if you need --> several features:
