@@ -13,16 +13,18 @@ class AIRouting(BASE_routing):
 		self.rnd_for_routing_ai = np.random.RandomState(self.simulator.seed)
 		self.taken_actions : Dict = dict()  #id event : (old_action)
 		self.q_table : Dict = dict() # Q-table: {key: value}, key is a cell index, value a drone
+		self.n_table : Dict = dict() # N-table
 		self.taken_actions_energy : Dict = dict() # id event : {cell_index: energy}
-		self.time_step : int = 0 # an agent (drone) interacts with the environment in discrete time steps.
-		self.epsilon : float = 0.98 # for epsilon-greedy (higher favors exploitation) 
+		self.epsilon : float = 0.70 # for epsilon-greedy (higher favors exploitation) 
 
 	def _get_cell_index_for_feedback(self, drone : Drone, id_event : int) -> int:
+		if id_event not in self.taken_actions:
+			return -1
 
 		cells_in_id_event = list(self.taken_actions[id_event].keys())
-
-		# if len(cells_in_id_event) == 1:
-		#	return cells_in_id_event[0]
+		
+		if len(cells_in_id_event) == 1:
+			return cells_in_id_event[0]
 		
 		cells_visited_by_the_drone = []
 		for cell in cells_in_id_event:
@@ -51,9 +53,22 @@ class AIRouting(BASE_routing):
 		if drone == self.drone: # skip the feedback if we are the same drone.
 			return None
 
-		print(self._get_cell_index_for_feedback(drone, id_event))
-		
-			
+		cell_index = self._get_cell_index_for_feedback(drone, id_event)
+
+		if cell_index == -1:
+			return None
+
+		if outcome == -1:
+			reward = -1
+		else:
+			reward = 10
+
+		print("Reward: ", reward)
+
+		if drone not in self.q_table[cell_index]:
+			self.q_table[cell_index][drone] = 0
+
+		self.q_table[cell_index][drone] += (1 / self.n_table[cell_index][drone]) * (reward - self.q_table[cell_index][drone])
 
 		# Be aware, due to network errors we can give the same event to multiple drones and receive multiple feedback for the same packet!!
 		# NOTE: reward or update using the old action!!
@@ -76,21 +91,29 @@ class AIRouting(BASE_routing):
 	def _exploration(self, neighbors: List[Drone] = [], id_event : int = 0, cell_index : int = 0) -> Drone:
 		""" Choose an action for exploration """
 		neighbors_drones : Set[Drone] = {drone[1] for drone in neighbors} # Set of neighbors Drone objects
-		action : Drone = self.rnd_for_routing_ai.choice(list(neighbors_drones)) # we take a drone randomly, this is exploration
+		action = None
+		if id_event in self.taken_actions:
+			if cell_index in self.taken_actions[id_event]:
+				already_taken_drones : Set[Drone] = self.taken_actions[id_event][cell_index]
+				if len(list(neighbors_drones - already_taken_drones)) == 0:
+					return action
+				else:
+					action : Drone = self.rnd_for_routing_ai.choice(list(neighbors_drones - already_taken_drones)) # we take a drone randomly, this is exploration
+		else:
+			action : Drone = self.rnd_for_routing_ai.choice(list(neighbors_drones)) # we take a drone randomly, this is exploration
 		self._save_action(action=action, id_event=id_event, cell_index=cell_index)
 		return action
 		
-
-	def _exploitation(self) -> Drone:
-		pass
+	def _exploitation(self, neighbors: List[Drone] = [], id_event : int = 0, cell_index : int = 0) -> Drone:
+		best_drone = max(self.q_table[cell_index].items(), key=self.q_table[cell_index].get)[0]
+		if best_drone in neighbors:
+			self._save_action(action=best_drone, id_event=id_event, cell_index=cell_index)
+			return best_drone
 
 	def relay_selection(self, opt_neighbors: List[Drone], pkd: DataPacket):
 		""" arg min score  -> geographical approach, take the drone closest to the depot """
 		
-		self.time_step += 1 # we are gonna to do an action, so increment the time-step
-		
 		packet_id_event : int = pkd.event_ref.identifier
-
 		# Only if you need --> several features:
 		cell_index = util.TraversedCells.coord_to_cell(size_cell=self.simulator.prob_size_cell,
 		                                                width_area=self.simulator.env_width,
@@ -105,15 +128,19 @@ class AIRouting(BASE_routing):
 		
 		if cell_index not in self.q_table:
 			self.q_table[cell_index] = dict() # cell_index represents the state, in our case is the drone's cell (index) location.
-		
+			self.n_table[cell_index] = dict()
 
-		if not self.q_table[cell_index]:
+		if not self.q_table[cell_index] or self.rnd_for_routing_ai.random() > self.epsilon:
 			# we do exploration if the q_table[cell_index] is empty or with the e-greedy strategy
-			return self._exploration(neighbors=opt_neighbors, id_event=packet_id_event, cell_index=cell_index)
+			action = self._exploration(neighbors=opt_neighbors, id_event=packet_id_event, cell_index=cell_index)
 		else:
-			self._exploitation()
-
-		action = None
+			action = self._exploitation(neighbors=opt_neighbors, id_event=packet_id_event, cell_index=cell_index)
+		
+		if action != None:
+			if action not in self.n_table[cell_index]:
+				self.n_table[cell_index][action] = 1
+			else:
+				self.n_table[cell_index][action] += 1
 
 		# self.drone.history_path (which waypoint I traversed. We assume the mission is repeated)
 		# self.drone.residual_energy (that tells us when I'll come back to the depot).
@@ -121,7 +148,7 @@ class AIRouting(BASE_routing):
 
 		# Store your current action --- you can add several stuff if needed to take a reward later
 		#self.taken_actions[pkd.event_ref.identifier] = (action)
-		return None  # here you should return a drone object!
+		return action  # here you should return a drone object!
 
 	def print(self):
 		"""
