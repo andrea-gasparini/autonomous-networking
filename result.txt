@@ -1,0 +1,4 @@
+pygame 2.0.2 (SDL 2.0.16, Python 3.9.7)
+Hello from the pygame community. https://www.pygame.org/contribute.html
+step: 0 00:00:00
+140430272046944 dict_keys([]) {} Drone 0
