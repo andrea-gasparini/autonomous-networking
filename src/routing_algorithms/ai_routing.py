@@ -63,8 +63,7 @@ class AIRouting(BASE_routing):
 		else:
 			reward = 10
 
-		print("Reward: ", reward)
-
+		
 		if drone not in self.q_table[cell_index]:
 			self.q_table[cell_index][drone] = 0
 

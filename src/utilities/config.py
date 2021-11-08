@@ -3,6 +3,7 @@ from src.routing_algorithms.georouting import GeoRouting
 from src.routing_algorithms.random_routing import RandomRouting
 from src.routing_algorithms.closeset_to_me_routing import CloRouting
 from src.routing_algorithms.ai_routing import AIRouting
+from src.routing_algorithms.custom_routing import CUSTOMRouting
 
 from enum import Enum
 
@@ -89,7 +90,7 @@ class RoutingAlgorithm(Enum):
     GEO = GeoRouting
     RND = RandomRouting
     CLO = CloRouting
-    AI = AIRouting
+    AI = CUSTOMRouting
 
     @staticmethod
     def keylist():
