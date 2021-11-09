@@ -32,6 +32,7 @@ class CUSTOMRouting(BASE_routing):
 		self.epsilon = 0.02 # the epsilon-greedy implementation
 
 
+
 	def feedback(self, drone: Drone, id_event: int, delay: int, outcome) -> None:
 		
 		if id_event in self.taken_actions:
@@ -51,16 +52,46 @@ class CUSTOMRouting(BASE_routing):
 			# just update the Q-table, play with these values to see if something
 			# TODO: we can change also the update function as in wiki (https://it.wikipedia.org/wiki/Q-learning) adding a gamma and the alpha
 			self.q_table[pass_packet][state] += 1 / self.count_action_table[action] * (reward - self.q_table[pass_packet][state])
-			
 
-	def _update_count_action_table(self, drone: Drone):
+
+	def relay_selection(self, opt_neighbors: List[Drone], pkd: DataPacket):
+
+		neighbors_drones_instances: Set[Drone] = {drone[1] for drone in opt_neighbors} # all neighbors drones
+		neighbors_drones_instances.add(self.drone) # add me in order to the possible choice (so, if we select self.drone we are keeping the packet)
+		state = self.drone.path.index(self.drone.next_target()) # get the state
+
+		# we need to calculate the action!
+		if self.force_exploration or self.rnd_for_routing_ai.rand() < self.epsilon:
+			# we are doing exploration, so select RANDOMLY from the neighbors_drones_instances.
+			action = self.rnd_for_routing_ai.choice(list(neighbors_drones_instances))
+			self.force_exploration = False # we reset the force_exploration for the first run.
+			self.__update_count_action_table(action)
+		else:
+			# here we have to take the best drone, for our policy!
+			action = self.__select_best_drone(opt_neighbors, state)
+			self.__update_count_action_table(action)
+
+		self.taken_actions[pkd.event_ref.identifier] = (state, action) # save the taken action for the state
+
+		return action
+
+
+	def print(self):
+		"""
+			This method is called at the end of the simulation, can be usefull to print some
+				metrics about the learning process
+		"""
+		pass
+
+
+	def __update_count_action_table(self, drone: Drone):
 		if drone not in self.count_action_table:
 			self.count_action_table[drone] = 1
 		else:
 			self.count_action_table[drone] += 1
 
 
-	def _select_best_drone(self, neighbors: List[Drone], state: int) -> Drone:
+	def __select_best_drone(self, neighbors: List[Drone], state: int) -> Drone:
 		best_drone = None
 		best_score = -1
 		me_depot_distance = util.euclidean_distance(self.drone.coords, self.simulator.depot_coordinates)
@@ -84,33 +115,3 @@ class CUSTOMRouting(BASE_routing):
 				best_drone = drone
 
 		return best_drone if best_drone != None else self.drone
-
-
-	def relay_selection(self, opt_neighbors: List[Drone], pkd: DataPacket):
-
-		neighbors_drones_instances: Set[Drone] = {drone[1] for drone in opt_neighbors} # all neighbors drones
-		neighbors_drones_instances.add(self.drone) # add me in order to the possible choice (so, if we select self.drone we are keeping the packet)
-		state = self.drone.path.index(self.drone.next_target()) # get the state
-
-		# we need to calculate the action!
-		if self.force_exploration or self.rnd_for_routing_ai.rand() < self.epsilon:
-			# we are doing exploration, so select RANDOMLY from the neighbors_drones_instances.
-			action = self.rnd_for_routing_ai.choice(list(neighbors_drones_instances))
-			self.force_exploration = False # we reset the force_exploration for the first run.
-			self._update_count_action_table(action)
-		else:
-			# here we have to take the best drone, for our policy!
-			action = self._select_best_drone(opt_neighbors, state)
-			self._update_count_action_table(action)
-
-		self.taken_actions[pkd.event_ref.identifier] = (state, action) # save the taken action for the state
-
-		return action
-
-
-	def print(self):
-		"""
-			This method is called at the end of the simulation, can be usefull to print some
-				metrics about the learning process
-		"""
-		pass
