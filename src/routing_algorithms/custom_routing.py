@@ -1,6 +1,6 @@
 
 import numpy as np
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 from src.entities.uav_entities import DataPacket, Drone
 from src.utilities import utilities as util
 from src.routing_algorithms.BASE_routing import BASE_routing
@@ -11,7 +11,7 @@ class CUSTOMRouting(BASE_routing):
 		BASE_routing.__init__(self, drone, simulator)
 		# random generator
 		self.rnd_for_routing_ai = np.random.RandomState(self.simulator.seed)
-		self.taken_actions : Dict[int, Drone] = dict()  #id event : (old_action)
+		self.taken_actions: Dict[int, Tuple[int, Drone]] = dict()  # {id event: (state, old_action)}
 
 		'''
 			A bit of theory:
@@ -23,13 +23,13 @@ class CUSTOMRouting(BASE_routing):
 			In this case, we have that the state is represented by the drone's positions (number of cells that the drone will traverse) and the possible action is to transfer the packet or not (so 2).
 		'''
 		self.q_table = [[0 for i in range(len(self.drone.path))] for j in range(2)]
-		self.count_action_table : Dict[Drone, int] = {} # {action: count}
+		self.count_action_table: Dict[Drone, int] = {} # {action: count}
 
 		self.force_exploration = True # to force the exploration
 		self.epsilon = 0.02 # the epsilon-greedy implementation
 
 
-	def feedback(self, drone: Drone, id_event : int, delay : int, outcome) -> None:
+	def feedback(self, drone: Drone, id_event: int, delay: int, outcome) -> None:
 		
 		if id_event in self.taken_actions:
 			state, action = self.taken_actions[id_event]
@@ -38,7 +38,7 @@ class CUSTOMRouting(BASE_routing):
 			del self.taken_actions[id_event]
 			
 			# it is used in the self.q_table to check the action (0 if the drone DIDN'T pass the packet, 1 otherwise)
-			pass_packet : bool = action == self.drone # check if the action is to pass or not (if action == self.drone then I do not pass the packet)
+			pass_packet: bool = action == self.drone # check if the action is to pass or not (if action == self.drone then I do not pass the packet)
 			
 			if outcome == -1:
 				reward = -1
@@ -78,7 +78,7 @@ class CUSTOMRouting(BASE_routing):
 
 	def relay_selection(self, opt_neighbors: List[Drone], pkd: DataPacket):
 
-		neighbors_drones_instances : Set[Drone] = {drone[1] for drone in opt_neighbors} # all neighbors drones
+		neighbors_drones_instances: Set[Drone] = {drone[1] for drone in opt_neighbors} # all neighbors drones
 		neighbors_drones_instances.add(self.drone) # add me in order to the possible choice (so, if we select self.drone we are keeping the packet)
 		state = self.drone.path.index(self.drone.next_target()) # get the state
 
