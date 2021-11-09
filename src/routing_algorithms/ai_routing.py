@@ -155,12 +155,20 @@ class AIRouting(BASE_routing):
 					action = self.rnd_for_routing_ai.choice(list(neighbors_drones - already_taken_drones)) # we take a drone randomly, this is exploration
 		else:
 			action = self.rnd_for_routing_ai.choice(list(neighbors_drones)) # we take a drone randomly, this is exploration
+
+		# TODO FIXME here action can still be None
 		self.__save_action(action=action, id_event=id_event, cell_index=cell_index)
 		return action
 
 		
 	def __exploitation(self, neighbors: List[Drone] = [], id_event: int = 0, cell_index: int = 0) -> Drone:
-		best_drone = max(self.q_table[cell_index].items(), key=self.q_table[cell_index].get)[0]
+
+		best_drone, best_drone_action_value = None, None
+		
+		for drone, action_value in self.q_table[cell_index].items():
+			if best_drone is None or action_value > best_drone_action_value:
+				best_drone, best_drone_action_value = drone, action_value
+
 		if best_drone in neighbors:
 			self.__save_action(action=best_drone, id_event=id_event, cell_index=cell_index)
 			return best_drone
