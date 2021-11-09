@@ -7,6 +7,9 @@ from src.routing_algorithms.BASE_routing import BASE_routing
 from matplotlib import pyplot as plt
 
 class CUSTOMRouting(BASE_routing):
+
+	ALPHA = 1.5
+
 	def __init__(self, drone: Drone, simulator):
 		BASE_routing.__init__(self, drone, simulator)
 		# random generator
@@ -43,11 +46,11 @@ class CUSTOMRouting(BASE_routing):
 			if outcome == -1:
 				reward = -1
 			else:
-				reward = 0.05 * delay * (action.residual_energy/self.simulator.drone_max_energy) # random reward based on delay and residual energy
+				reward = 0.05 * delay * (action.residual_energy / self.simulator.drone_max_energy) # random reward based on delay and residual energy
 			
 			# just update the Q-table, play with these values to see if something
 			# TODO: we can change also the update function as in wiki (https://it.wikipedia.org/wiki/Q-learning) adding a gamma and the alpha
-			self.q_table[pass_packet][state] = 1 / self.count_action_table[action] * (reward - self.q_table[pass_packet][state])
+			self.q_table[pass_packet][state] += 1 / self.count_action_table[action] * (reward - self.q_table[pass_packet][state])
 			
 
 	def _update_count_action_table(self, drone: Drone):
@@ -56,7 +59,8 @@ class CUSTOMRouting(BASE_routing):
 		else:
 			self.count_action_table[drone] += 1
 
-	def _select_best_drone(self, neighbors: List[Drone]) -> Drone: 
+
+	def _select_best_drone(self, neighbors: List[Drone], state: int) -> Drone:
 		best_drone = None
 		best_score = -1
 		me_depot_distance = util.euclidean_distance(self.drone.coords, self.simulator.depot_coordinates)
@@ -64,8 +68,13 @@ class CUSTOMRouting(BASE_routing):
 			# I take a drone by the best drone score (0.03 is to tuning); ho messo 0.2 ora, prima era 0.03 e arrivavo a 0.6 di delivery ratio
 			# I do 0.03 * residual energy of the drone I'm considering multiplied by the euclidean distance between the drone and the simulator depot.
 			drone = drone[1]
+			pass_packet: bool = drone == self.drone
 			drone_depot_distance = util.euclidean_distance(drone.coords, self.simulator.depot_coordinates)
-			drone_score = 0.2 * (drone.residual_energy / self.simulator.drone_max_energy) * drone_depot_distance
+			drone_score = (self.ALPHA * (drone.residual_energy / self.simulator.drone_max_energy) * drone_depot_distance)
+
+			if drone_score > 0:
+				drone_score = np.power(drone_score, (pass_packet * self.q_table[0][state] + (1 - pass_packet) * self.q_table[1][state]))
+
 			# if I am closer to the depot, skip this drone
 			if me_depot_distance < drone_depot_distance:
 				continue
@@ -75,6 +84,7 @@ class CUSTOMRouting(BASE_routing):
 				best_drone = drone
 
 		return best_drone if best_drone != None else self.drone
+
 
 	def relay_selection(self, opt_neighbors: List[Drone], pkd: DataPacket):
 
@@ -90,12 +100,13 @@ class CUSTOMRouting(BASE_routing):
 			self._update_count_action_table(action)
 		else:
 			# here we have to take the best drone, for our policy!
-			action = self._select_best_drone(opt_neighbors)
+			action = self._select_best_drone(opt_neighbors, state)
 			self._update_count_action_table(action)
 
 		self.taken_actions[pkd.event_ref.identifier] = (state, action) # save the taken action for the state
-			
+
 		return action
+
 
 	def print(self):
 		"""
