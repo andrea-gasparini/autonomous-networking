@@ -90,7 +90,7 @@ class RoutingAlgorithm(Enum):
     GEO = GeoRouting
     RND = RandomRouting
     CLO = CloRouting
-    AI = CUSTOMRouting
+    AI = AIRouting
 
     @staticmethod
     def keylist():

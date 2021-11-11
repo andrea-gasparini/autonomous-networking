@@ -47,7 +47,7 @@ class CUSTOMRouting(BASE_routing):
 			if outcome == -1:
 				reward = -1
 			else:
-				reward = 0.05 * delay * (action.residual_energy / self.simulator.drone_max_energy) # random reward based on delay and residual energy
+				reward = 0.05 * (1 / delay) * (action.residual_energy / self.simulator.drone_max_energy) # random reward based on delay and residual energy
 			
 			# just update the Q-table, play with these values to see if something
 			# TODO: we can change also the update function as in wiki (https://it.wikipedia.org/wiki/Q-learning) adding a gamma and the alpha
