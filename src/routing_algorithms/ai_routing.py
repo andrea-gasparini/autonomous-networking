@@ -16,12 +16,11 @@ class AIRouting(BASE_routing):
 		self.taken_actions = {}
 
 		# i = 0 -> keep packet, i = 1 pass packet
-		self.q_table: List[int] = [0, 0]				# Q-table for the two actions: keep or pass the packet.
-		self.n_table: List[int] = [0, 0]				# N-table for the count of the two actions.
-		self.epsilon: int = 0.040 # [0.030, 0.040]
+		self.q_table: List[int] = [0 for i in range(self.simulator.n_drones)] # Q-table for the two actions: keep or pass the packet.
+		self.n_table: List[int] = [0 for i in range(self.simulator.n_drones)]				# N-table for the count of the two actions.
+		self.epsilon: int = 0.09 # [0.030, 0.040]
 		self.force_exploration = True
 		self.alpha = 1.5
-
 		self.exploration, self.exploitation = 0, 0
 
 
@@ -40,15 +39,13 @@ class AIRouting(BASE_routing):
 
 			if outcome == -1:
 				drone_depot_distance = util.euclidean_distance(action.coords, self.simulator.depot_coordinates)
-				reward = (-1 / (drone_depot_distance + 1.0e-6))
+				reward = -1
 				#print(delay, ' delay perso')
 			else:
-				reward = 0.5 * (action.residual_energy / self.simulator.drone_max_energy) / delay # random reward based on delay and residual energy
+				reward = 5
 
 			del self.taken_actions[id_event]
-
-			pass_packet: bool = action == self.drone
-			self.q_table[pass_packet] += 1 / self.n_table[pass_packet] * (reward - self.q_table[pass_packet])
+			self.q_table[action.identifier] += 1 / self.n_table[action.identifier] * (reward - self.q_table[action.identifier])
 
 	def relay_selection(self, opt_neighbors: List[Drone], pkd: DataPacket) -> Drone:
 		""" arg min score  -> geographical approach, take the drone closest to the depot """
@@ -63,24 +60,23 @@ class AIRouting(BASE_routing):
 		action = None
 
 		neighbors_drones: Set[Drone] = {drone[1] for drone in opt_neighbors}
+		neighbors_drones.add(self.drone)
 
 		if packet_id_event not in self.taken_actions:
 			self.taken_actions[packet_id_event] = None
 
 		if self.force_exploration or self.rnd_for_routing_ai.rand() < self.epsilon:
-			neighbors_drones.add(self.drone)
 			action = self.rnd_for_routing_ai.choice(list(neighbors_drones))
 			self.force_exploration = False
 			self.taken_actions[packet_id_event] = action
 			self.exploration += 1
 		else:
-			action = self.__exploitation(neighbors_drones)
+			action = self.__exploitation(neighbors_drones)			
 			self.taken_actions[packet_id_event] = action
 			self.exploitation += 1
 
-			
-		pass_packet: bool = self.drone == action
-		self.n_table[pass_packet] += 1
+		#print(action)
+		self.n_table[action.identifier] += 1
 
 		# self.drone.history_path (which waypoint I traversed. We assume the mission is repeated)
 		# self.drone.residual_energy (that tells us when I'll come back to the depot).
@@ -93,6 +89,10 @@ class AIRouting(BASE_routing):
 	def __exploitation(self, neighbors) -> Drone:
 		best_drone = None
 		best_score = float('-inf')
+		
+		return max([(drone, self.q_table[drone.identifier]) for drone in neighbors], key=lambda x: x[1])[0]
+
+		"""
 		me_depot_distance = util.euclidean_distance(self.drone.coords, self.simulator.depot_coordinates)
 		for drone in neighbors:
 			# I take a drone by the best drone score (0.03 is to tuning); ho messo 0.2 ora, prima era 0.03 e arrivavo a 0.6 di delivery ratio
@@ -116,6 +116,7 @@ class AIRouting(BASE_routing):
 				best_drone = drone
 
 		return best_drone if best_drone != None else self.drone
+		"""
 
 	def print(self):
 		"""
