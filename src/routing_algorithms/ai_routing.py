@@ -27,6 +27,7 @@ class AIRouting(BASE_routing):
 	def feedback(self, drone: Drone, id_event: int, delay: int, outcome) -> None:
 		""" return a possible feedback, if the destination drone has received the packet """
 		# Packets that we delivered and still need a feedback
+		# Drone is the drone that wants to transfer packets OR it is the drone that has lost some packets
 		
 		# https://imgur.com/a/JqjB0gP
 
@@ -35,15 +36,11 @@ class AIRouting(BASE_routing):
 		# STORE WHICH ACTION DID YOU TAKE IN THE PAST.
 		# do something or train the model (?)
 		if id_event in self.taken_actions:
-			action = self.taken_actions[id_event]
-
+			action: Drone = self.taken_actions[id_event]
 			if outcome == -1:
-				drone_depot_distance = util.euclidean_distance(action.coords, self.simulator.depot_coordinates)
-				reward = -1
-				#print(delay, ' delay perso')
+				reward = -2
 			else:
-				reward = 5
-
+				reward = 2 * (action.residual_energy / self.simulator.drone_max_energy) / delay # random reward 
 			del self.taken_actions[id_event]
 			self.q_table[action.identifier] += 1 / self.n_table[action.identifier] * (reward - self.q_table[action.identifier])
 
@@ -58,6 +55,7 @@ class AIRouting(BASE_routing):
 		#												y_pos=self.drone.coords[1])[0]  # e.g. 500
 
 		action = None
+
 
 		neighbors_drones: Set[Drone] = {drone[1] for drone in opt_neighbors}
 		neighbors_drones.add(self.drone)
@@ -74,8 +72,7 @@ class AIRouting(BASE_routing):
 			action = self.__exploitation(neighbors_drones)			
 			self.taken_actions[packet_id_event] = action
 			self.exploitation += 1
-
-		#print(action)
+			
 		self.n_table[action.identifier] += 1
 
 		# self.drone.history_path (which waypoint I traversed. We assume the mission is repeated)
@@ -89,15 +86,14 @@ class AIRouting(BASE_routing):
 	def __exploitation(self, neighbors) -> Drone:
 		best_drone = None
 		best_score = float('-inf')
-		
-		return max([(drone, self.q_table[drone.identifier]) for drone in neighbors], key=lambda x: x[1])[0]
-
-		"""
+		#neighbors_and_distance = [(drone, util.euclidean_distance(drone.next_target(), self.simulator.depot_coordinates), self.q_table[drone.identifier]) for drone in neighbors]
+		#neighbors_and_distance_sorted = sorted(neighbors_and_distance, key = lambda x: x[2])[0][0]
+		#print(neighbors_and_distance, neighbors_and_distance_sorted, self.drone)
+		#return neighbors_and_distance_sorted
 		me_depot_distance = util.euclidean_distance(self.drone.coords, self.simulator.depot_coordinates)
 		for drone in neighbors:
 			# I take a drone by the best drone score (0.03 is to tuning); ho messo 0.2 ora, prima era 0.03 e arrivavo a 0.6 di delivery ratio
 			# I do 0.03 * residual energy of the drone I'm considering multiplied by the euclidean distance between the drone and the simulator depot.
-			pass_packet: bool = drone == self.drone
 			drone_depot_distance = util.euclidean_distance(drone.coords, self.simulator.depot_coordinates)
 			
 			# if I am closer to the depot, skip this drone
@@ -105,9 +101,10 @@ class AIRouting(BASE_routing):
 				continue
 
 			if drone_depot_distance == 0:
-				drone_score = float('inf')
+				best_drone = drone
+				break
 			else:
-				drone_score = (self.alpha * (drone.residual_energy / self.simulator.drone_max_energy) / drone_depot_distance) * (self.q_table[pass_packet])
+				drone_score = (self.alpha * (drone.residual_energy / self.simulator.drone_max_energy) / drone_depot_distance) * (self.q_table[drone.identifier])
 
 			#print(drone_score, "Drone Score")
 
@@ -116,7 +113,6 @@ class AIRouting(BASE_routing):
 				best_drone = drone
 
 		return best_drone if best_drone != None else self.drone
-		"""
 
 	def print(self):
 		"""
