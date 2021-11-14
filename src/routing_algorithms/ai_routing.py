@@ -18,7 +18,7 @@ class AIRouting(BASE_routing):
 		# i = 0 -> keep packet, i = 1 pass packet
 		self.q_table: List[int] = [-5 for i in range(self.simulator.n_drones)] # Q-table for the two actions: keep or pass the packet.
 		self.n_table: List[int] = [0 for i in range(self.simulator.n_drones)] # N-table for the count of the two actions.
-		self.epsilon: int = 0.09 # [0.030, 0.040], 0.2 abbiamo 0.72
+		self.epsilon: int = 0.02 # [0.030, 0.040], 0.2 abbiamo 0.72
 		self.force_exploration = True
 		self.alpha = 1.5
 		self.exploration, self.exploitation = 0, 0
@@ -41,7 +41,8 @@ class AIRouting(BASE_routing):
 			if outcome == -1:
 				reward = -2
 			else:
-				reward = 2 * (action.residual_energy / action.max_energy) / delay # random reward 
+				reward = 2 + (2 * (action.residual_energy / action.max_energy) / delay) # random reward 
+			
 			del self.taken_actions[id_event]
 			self.q_table[action.identifier] += 1 / self.n_table[action.identifier] * (reward - self.q_table[action.identifier])
 
