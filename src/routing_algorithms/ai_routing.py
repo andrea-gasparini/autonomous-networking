@@ -23,6 +23,9 @@ class AIRouting(BASE_routing):
 		self.alpha = 1.5
 		self.exploration, self.exploitation = 0, 0
 		self.drone_explored: Set[Drone] = set()
+		self.feedback_timestep = 0
+		self.rewards = 0
+		self.avg_rewards = []
 
 
 	def feedback(self, drone: Drone, id_event: int, delay: int, outcome) -> None:
@@ -46,6 +49,9 @@ class AIRouting(BASE_routing):
 			del self.taken_actions[id_event]
 			self.q_table[action.identifier] += 1 / self.n_table[action.identifier] * (reward - self.q_table[action.identifier])
 
+			self.rewards += reward
+			self.feedback_timestep += 1
+			self.avg_rewards += [self.rewards / self.feedback_timestep]
 
 	def relay_selection(self, opt_neighbors: List[Drone], pkd: DataPacket) -> Drone:
 		""" arg min score  -> geographical approach, take the drone closest to the depot """
@@ -104,7 +110,7 @@ class AIRouting(BASE_routing):
 			if me_depot_distance < drone_depot_distance:
 				continue
 
-			if drone_depot_distance <= 30:
+			if drone_depot_distance <= self.simulator.depot_com_range:
 				best_drone = drone
 				break
 			else:
@@ -125,4 +131,9 @@ class AIRouting(BASE_routing):
 		print('-' * 50)
 		print('Exploration count', self.exploration)
 		print('Exploitation count', self.exploitation)
+		steps = np.arange(self.feedback_timestep)
+		#plt.plot(steps, self.avg_rewards)
+		#plt.ylabel("avg rewards")
+		#plt.xlabel("feedback")
+		#plt.show()
 		print('-' * 50)
