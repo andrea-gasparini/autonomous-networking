@@ -5,8 +5,9 @@ from src.entities.uav_entities import DataPacket, Drone
 from src.utilities import utilities as util
 from src.routing_algorithms.BASE_routing import BASE_routing
 from matplotlib import pyplot as plt
+import math
 
-class AIRouting(BASE_routing):
+class UCBRouting(BASE_routing):
 
 	def __init__(self, drone: Drone, simulator):
 		BASE_routing.__init__(self, drone, simulator)
@@ -18,14 +19,12 @@ class AIRouting(BASE_routing):
 		# i = 0 -> keep packet, i = 1 pass packet
 		self.q_table: List[int] = [0 for i in range(self.simulator.n_drones)] # Q-table for the two actions: keep or pass the packet.
 		self.n_table: List[int] = [0 for i in range(self.simulator.n_drones)] # N-table for the count of the two actions.
-		self.epsilon: int = 0.02 # [0.030, 0.040], 0.2 abbiamo 0.72
-		self.force_exploration = True
-		self.alpha = 1.5
-		self.exploration, self.exploitation = 0, 0
 		self.drone_explored: Set[Drone] = set()
 		self.feedback_timestep = 0
 		self.rewards = 0
 		self.avg_rewards = []
+		self.timestep = 0
+		self.c = 2
 
 
 	def feedback(self, drone: Drone, id_event: int, delay: int, outcome) -> None:
@@ -58,6 +57,7 @@ class AIRouting(BASE_routing):
 		""" arg min score  -> geographical approach, take the drone closest to the depot """
 		
 		packet_id_event: int = pkd.event_ref.identifier
+		self.timestep += 1
 		# Only if you need --> several features:
 		#cell_index = util.TraversedCells.coord_to_cell(size_cell=self.simulator.prob_size_cell,
 		#												width_area=self.simulator.env_width,
@@ -67,10 +67,12 @@ class AIRouting(BASE_routing):
 		action = None
 
 		neighbors_drones: Set[Drone] = {drone[1] for drone in opt_neighbors}
+		neighbors_drones.add(self.drone)
 
 		if packet_id_event not in self.taken_actions:
 			self.taken_actions[packet_id_event] = None
 
+		"""
 		if self.force_exploration or self.rnd_for_routing_ai.rand() < self.epsilon:
 			neighbors_drones.add(self.drone)
 			action = self.rnd_for_routing_ai.choice(list(neighbors_drones))
@@ -81,8 +83,18 @@ class AIRouting(BASE_routing):
 			action = self.__exploitation(neighbors_drones)			
 			self.taken_actions[packet_id_event] = action
 			self.exploitation += 1
-			
+		"""
+
+		best_score = float('-inf')
+		for drone in neighbors_drones:
+			drone_score = self.q_table[drone.identifier] + self.c * math.sqrt(math.log(self.timestep) / self.n_table[drone.identifier]) if self.n_table[drone.identifier] > 0 else float('inf')
+
+			if drone_score > best_score:
+				action = drone
+				best_score = drone_score
+
 		self.n_table[action.identifier] += 1
+		self.taken_actions[packet_id_event] = action
 
 		# self.drone.history_path (which waypoint I traversed. We assume the mission is repeated)
 		# self.drone.residual_energy (that tells us when I'll come back to the depot).
@@ -92,7 +104,7 @@ class AIRouting(BASE_routing):
 		# self.taken_actions[pkd.event_ref.identifier] = (action)
 		return action
 
-
+	"""
 	def __exploitation(self, neighbors: List[Drone]) -> Drone:
 		best_drone = None
 		best_score = float('-inf')
@@ -122,19 +134,11 @@ class AIRouting(BASE_routing):
 				best_drone = drone
 
 		return best_drone if best_drone != None else self.drone
-
+	"""
 
 	def print(self):
 		"""
 			This method is called at the end of the simulation, can be usefull to print some
 				metrics about the learning process
 		"""
-		print('-' * 50)
-		print('Exploration count', self.exploration)
-		print('Exploitation count', self.exploitation)
-		steps = np.arange(self.feedback_timestep)
-		#plt.plot(steps, self.avg_rewards)
-		#plt.ylabel("avg rewards")
-		#plt.xlabel("feedback")
-		#plt.show()
-		print('-' * 50)
+		...

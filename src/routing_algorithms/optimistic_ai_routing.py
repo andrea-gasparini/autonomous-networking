@@ -6,7 +6,7 @@ from src.utilities import utilities as util
 from src.routing_algorithms.BASE_routing import BASE_routing
 from matplotlib import pyplot as plt
 
-class AIRouting(BASE_routing):
+class OptimisticAIRouting(BASE_routing):
 
 	def __init__(self, drone: Drone, simulator):
 		BASE_routing.__init__(self, drone, simulator)
@@ -16,7 +16,7 @@ class AIRouting(BASE_routing):
 		self.taken_actions = {}
 
 		# i = 0 -> keep packet, i = 1 pass packet
-		self.q_table: List[int] = [0 for i in range(self.simulator.n_drones)] # Q-table for the two actions: keep or pass the packet.
+		self.q_table: List[int] = [5 for i in range(self.simulator.n_drones)] # Q-table for the two actions: keep or pass the packet.
 		self.n_table: List[int] = [0 for i in range(self.simulator.n_drones)] # N-table for the count of the two actions.
 		self.epsilon: int = 0.02 # [0.030, 0.040], 0.2 abbiamo 0.72
 		self.force_exploration = True
