@@ -1,6 +1,6 @@
-data/plots/*
-data/evaluation_tests/*
-data/experiments/*
+homework*/data/plots/*
+homework*/data/evaluation_tests/*
+homework*/data/experiments/*
 */__pycache__
 */*/__pycache__
 .idea
