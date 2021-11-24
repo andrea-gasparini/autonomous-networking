@@ -1,6 +1,6 @@
 
 import numpy as np
-from typing import Dict, List, Set
+from typing import Tuple, List, Set
 from src.entities.uav_entities import DataPacket, Drone
 from src.utilities import utilities as util
 from src.routing_algorithms.BASE_routing import BASE_routing
@@ -28,7 +28,7 @@ class AIRouting(BASE_routing):
 		self.avg_rewards = []
 
 
-	def feedback(self, drone: Drone, id_event: int, delay: int, outcome) -> None:
+	def feedback(self, drone: Drone, id_event: int, delay: int, outcome: int) -> None:
 		""" return a possible feedback, if the destination drone has received the packet """
 		# Packets that we delivered and still need a feedback
 		# Drone is the drone that wants to transfer packets OR it is the drone that has lost some packets
@@ -54,7 +54,7 @@ class AIRouting(BASE_routing):
 			self.avg_rewards += [self.rewards / self.feedback_timestep]
 
 
-	def relay_selection(self, opt_neighbors: List[Drone], pkd: DataPacket) -> Drone:
+	def relay_selection(self, opt_neighbors: List[Tuple[DataPacket, Drone]], pkd: DataPacket) -> Drone:
 		""" arg min score  -> geographical approach, take the drone closest to the depot """
 		
 		packet_id_event: int = pkd.event_ref.identifier
