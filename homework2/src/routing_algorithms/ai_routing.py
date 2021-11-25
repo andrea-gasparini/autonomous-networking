@@ -7,6 +7,11 @@ from matplotlib import pyplot as plt
 from src.utilities import config
 
 class AIRouting(BASE_routing):
+
+	EPSILON: float = 0.2
+
+	EXPLORATION_MOVE_PROBABILTY: float = 0.8
+
 	def __init__(self, drone: Drone, simulator) -> None:
 		BASE_routing.__init__(self, drone, simulator)
 		# random generator
@@ -16,7 +21,6 @@ class AIRouting(BASE_routing):
 
 		self.q_table: Dict[int, List[int]] = {} # {0: [0, ..., 0]}
 		#self.n_table: Dict[] = {}
-		self.epsilon: float = 0.02
 		self.force_exploration: bool = True
 
 
@@ -41,16 +45,93 @@ class AIRouting(BASE_routing):
 			if outcome == -1:
 				reward = -2
 			else:
-				reward = 2 + 2 / delay
-
+				#reward = 2 + 2 / delay
+				reward = 2
 			if action == None:
 				action = self.drone.identifier
 			elif isinstance(action, Drone):
 				action = action.identifier
 
-			self.q_table[cell_index][action] = self.q_table[cell_index][action] + 0.8 * (reward + 1.0 * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action])
+			self.q_table[cell_index][action] = self.q_table[cell_index][action] + 0.5 * (reward + 0.6 * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action])
 
 			del self.taken_actions[id_event]
+
+
+	def __exploration(self, neighbors_drones: Set[Drone]) -> Union[None, Literal[-1], Drone]:
+		""" Do exploration """
+		action = None
+
+		if self.rnd_for_routing_ai.rand() > self.EXPLORATION_MOVE_PROBABILTY and self.drone.buffer_length() < 2:
+			action = self.rnd_for_routing_ai.choice(list(neighbors_drones))
+		else:
+			action = -1
+
+		self.force_exploration = False
+
+		return action if action != self.drone else None
+
+	
+	def __exploitation_1795030(self, neighbors_drones: Set[Drone], cell_index: int) -> Union[None, Literal[-1], Drone]:
+		max_value = -1
+		action = None
+
+		for drone in neighbors_drones:
+			if self.drone.move_routing and drone.move_routing and drone.buffer_length() >= 1:
+				self_depot_distance = util.euclidean_distance(self.drone.coords, self.simulator.depot_coordinates)
+				drone_depot_distance = util.euclidean_distance(drone.coords, self.simulator.depot_coordinates)
+
+				time_self_to_depot = self_depot_distance / self.drone.speed
+				time_drone_to_depot = drone_depot_distance / drone.speed
+
+				if time_self_to_depot > time_drone_to_depot:
+					return drone
+			elif not self.drone.move_routing and drone.move_routing and self.drone.buffer_length() >= 1:
+				return drone
+				
+
+			if self.q_table[cell_index][drone.identifier] > max_value:
+				action = drone
+				max_value = self.q_table[cell_index][drone.identifier]
+		
+		if self.q_table[cell_index][self.drone.identifier] > max_value:
+			action = None
+			max_value = self.q_table[cell_index][self.drone.identifier]
+
+		if self.q_table[cell_index][-1] > max_value: action = -1
+
+		return action
+
+
+	def __stupid_exploitationn(self, n, c):
+		if self.drone.buffer_length() >= 1:
+			return -1
+		
+		return None
+
+
+	def __exploitation(self, neighbors_drones: Set[Drone], cell_index: int) -> Union[None, Literal[-1], Drone]:
+		""" Do exploitation """	
+		max_value = -1
+		action = None
+		for drone in neighbors_drones:
+			
+			# if the drone has at least one packet and a neighbor moving to the depot
+			# pass the packet to that neighbor
+			if self.drone.buffer_length() >= 1 and drone.move_routing and not self.drone.move_routing:
+				return drone
+
+			if self.q_table[cell_index][drone.identifier] > max_value:
+				action = drone
+				max_value = self.q_table[cell_index][drone.identifier]
+
+
+		if self.q_table[cell_index][self.drone.identifier] > max_value:
+			action = None
+			max_value = self.q_table[cell_index][self.drone.identifier]
+
+		if self.q_table[cell_index][-1] > max_value: action = -1
+
+		return action
 
 
 	def relay_selection(self, opt_neighbors: List[Tuple[DataPacket, Drone]], pkd: DataPacket) -> Union[None, Literal[-1], Drone]:
@@ -61,7 +142,7 @@ class AIRouting(BASE_routing):
 			- SEND packet 	(return the drone)
 
 			Notice that, if you selected -1, you will move until your buffer is empty.
-			But you need still select a relay drone, if any, to empty your buffer.
+			But you still need to select a relay drone, if any, to empty your buffer.
 		"""
 		# Notice all the drones have different speed, and radio performance!!
 		# you know the speed, not the radio performance.
@@ -80,35 +161,16 @@ class AIRouting(BASE_routing):
 		packet_id_event: int = pkd.event_ref.identifier
 		neighbors_drones: Set[Drone] = {drone[1] for drone in opt_neighbors}
 
-		if self.force_exploration or self.rnd_for_routing_ai.rand() < self.epsilon:
+		if self.force_exploration or self.rnd_for_routing_ai.rand() < self.EPSILON:
 			neighbors_drones.add(self.drone)
-			action = self.rnd_for_routing_ai.choice(list(neighbors_drones)) if self.rnd_for_routing_ai.rand() < 0.5 else -1
-			self.force_exploration = False
-			self.taken_actions[packet_id_event] = action
-
-			if action == self.drone: action = None
-
+			action = self.__exploration(neighbors_drones)
 		else:
-			max_value = -1
-			action = None
-			for drone in neighbors_drones:
-				if self.q_table[cell_index][drone.identifier] > max_value:
-					action = drone
-					max_value = self.q_table[cell_index][drone.identifier]
-
-			if self.q_table[cell_index][self.drone.identifier] > max_value:
-				action = None
-				max_value = self.q_table[cell_index][self.drone.identifier]
-			
-			if self.q_table[cell_index][-1] > max_value: action = -1
+			action = self.__exploitation_1795030(neighbors_drones, cell_index)
 		
 
 		# self.drone.history_path (which waypoint I traversed. We assume the mission is repeated)
 		# self.drone.residual_energy (that tells us when I'll come back to the depot).
 		#  .....
-		# for hpk, drone_instance in opt_neighbors:
-		# 	print(hpk)
-		# 	continue
 
 		# Store your current action --- you can add several stuff if needed to take a reward later
 		next_cell_index = util.TraversedCells.coord_to_cell(size_cell=self.simulator.prob_size_cell,
