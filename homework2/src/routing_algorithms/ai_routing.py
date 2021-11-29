@@ -11,7 +11,7 @@ class AIRouting(BASE_routing):
 	ALPHA: float = 0.5
 	GAMMA: float = 0.6
 	EPSILON: float = 0.2
-	EXPLORATION_MOVE_PROBABILTY: float = 0.8
+	EXPLORATION_MOVE_PROBABILTY: float = 0.4
 
 	def __init__(self, drone: Drone, simulator) -> None:
 		BASE_routing.__init__(self, drone, simulator)
@@ -43,6 +43,14 @@ class AIRouting(BASE_routing):
 		if id_event in self.taken_actions:
 			action, cell_index, next_cell_index = self.taken_actions[id_event]
 
+			if action == None:
+				action = self.drone.identifier
+				selected_drone = self.drone
+			elif isinstance(action, Drone):
+				selected_drone = action
+				action = action.identifier
+			
+
 			if outcome == -1:
 				reward = -2
 			else:
@@ -51,10 +59,7 @@ class AIRouting(BASE_routing):
 				# something = ?
 				reward = 2
 
-			if action == None:
-				action = self.drone.identifier
-			elif isinstance(action, Drone):
-				action = action.identifier
+			
 
 			self.q_table[cell_index][action] += self.ALPHA * (reward + self.GAMMA * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action])
 
@@ -68,7 +73,8 @@ class AIRouting(BASE_routing):
 		if self.rnd_for_routing_ai.rand() > self.EXPLORATION_MOVE_PROBABILTY and self.drone.buffer_length() < 2:
 			action = self.rnd_for_routing_ai.choice(list(neighbors_drones))
 		else:
-			action = self.rnd_for_routing_ai.choice(list(neighbors_drones))
+			#print("AIO")
+			action = -1
 
 		self.force_exploration = False
 
@@ -83,7 +89,7 @@ class AIRouting(BASE_routing):
 		self_depot_distance = util.euclidean_distance(self.drone.coords, self.simulator.depot_coordinates)
 		time_self_to_depot = self_depot_distance / self.drone.speed
 
-		if len(neighbors_drones) == 0 and self.drone.buffer_length() > 0:
+		if len(neighbors_drones) == 0 and self.drone.buffer_length() > 2:
 			return -1
 
 		for drone in neighbors_drones:
@@ -98,13 +104,13 @@ class AIRouting(BASE_routing):
 			if drone.move_routing:
 				if self.drone.move_routing and drone.buffer_length() >= 1:
 					if time_self_to_depot > time_drone_to_depot:
-						tmp_score = time_drone_to_depot * drone.buffer_length() * self.q_table[cell_index][drone.identifier]
+						tmp_score = drone.buffer_length() * self.q_table[cell_index][drone.identifier] / time_drone_to_depot
 						if drone_score < tmp_score:
 							action = drone
 							drone_score = tmp_score
 
 				elif not self.drone.move_routing and self.drone.buffer_length() >= 1:
-					tmp_score = time_drone_to_depot * drone.buffer_length() * self.q_table[cell_index][drone.identifier]
+					tmp_score = drone.buffer_length() * self.q_table[cell_index][drone.identifier] / time_drone_to_depot
 					if drone_score < tmp_score:
 						action = drone
 						drone_score = tmp_score
@@ -118,8 +124,8 @@ class AIRouting(BASE_routing):
 			# 	max_value = self.q_table[cell_index][drone.identifier]
 		time_self_to_depot = self_depot_distance / self.drone.speed
 		me_drone_score = time_self_to_depot * self.drone.buffer_length() * self.q_table[cell_index][self.drone.identifier]
-		if not self.drone.move_routing and drone_score < me_drone_score and me_drone_score > 0:
-			action = -1
+		#if not self.drone.move_routing and drone_score < me_drone_score and me_drone_score > 0:
+		#	action = -1
 			#max_value = self.q_table[cell_index][self.drone.identifier]
 
 		#if self.q_table[cell_index][-1] > max_value: action = -1
