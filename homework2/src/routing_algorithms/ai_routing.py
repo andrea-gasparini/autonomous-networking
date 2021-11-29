@@ -17,7 +17,7 @@ class AIRouting(BASE_routing):
 		BASE_routing.__init__(self, drone, simulator)
 		# random generator
 		self.rnd_for_routing_ai = np.random.RandomState(self.simulator.seed)
-		self.taken_actions = {}  #id event : (old_action)
+		self.taken_actions: Dict[int, Tuple[Union[None, Literal[-1], Drone], int, int]] = {}  # {id_event : (old_action, cell_index, next_cell_index)}
 		self.drone: Drone = drone
 
 		self.q_table: Dict[int, List[int]] = {} # {0: [0, ..., 0]}
@@ -48,6 +48,7 @@ class AIRouting(BASE_routing):
 			else:
 				#reward = 2 + 2 / delay
 				reward = 2
+
 			if action == None:
 				action = self.drone.identifier
 			elif isinstance(action, Drone):
@@ -86,6 +87,7 @@ class AIRouting(BASE_routing):
 
 				if time_self_to_depot > time_drone_to_depot:
 					return drone
+
 			elif not self.drone.move_routing and drone.move_routing and self.drone.buffer_length() >= 1:
 				return drone
 				
@@ -101,13 +103,6 @@ class AIRouting(BASE_routing):
 		if self.q_table[cell_index][-1] > max_value: action = -1
 
 		return action
-
-
-	def __stupid_exploitationn(self, n, c):
-		if self.drone.buffer_length() >= 1:
-			return -1
-		
-		return None
 
 
 	def __exploitation(self, neighbors_drones: Set[Drone], cell_index: int) -> Union[None, Literal[-1], Drone]:
