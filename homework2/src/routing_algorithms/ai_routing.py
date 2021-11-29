@@ -8,8 +8,9 @@ from src.utilities import config
 
 class AIRouting(BASE_routing):
 
+	ALPHA: float = 0.5
+	GAMMA: float = 0.6
 	EPSILON: float = 0.2
-
 	EXPLORATION_MOVE_PROBABILTY: float = 0.8
 
 	def __init__(self, drone: Drone, simulator) -> None:
@@ -52,7 +53,7 @@ class AIRouting(BASE_routing):
 			elif isinstance(action, Drone):
 				action = action.identifier
 
-			self.q_table[cell_index][action] = self.q_table[cell_index][action] + 0.5 * (reward + 0.6 * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action])
+			self.q_table[cell_index][action] += self.ALPHA * (reward + self.GAMMA * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action])
 
 			del self.taken_actions[id_event]
 
