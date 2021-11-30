@@ -11,7 +11,13 @@ class AIRouting(BASE_routing):
 	ALPHA: float = 0.5
 	GAMMA: float = 0.6
 	EPSILON: float = 0.2
-	EXPLORATION_MOVE_PROBABILTY: float = 0.4
+	"""
+	Probability of performing exploration
+	"""
+	EXPLORATION_SEND_PROBABILTY: float = 0.6
+	"""
+	Probabilty of sending the packet to a random drone during exploration
+	"""
 
 	def __init__(self, drone: Drone, simulator) -> None:
 		BASE_routing.__init__(self, drone, simulator)
@@ -70,7 +76,9 @@ class AIRouting(BASE_routing):
 		""" Do exploration """
 		action = None
 
-		if self.rnd_for_routing_ai.rand() > self.EXPLORATION_MOVE_PROBABILTY and self.drone.buffer_length() < 2:
+		send_to_rnd_drone: bool = self.rnd_for_routing_ai.rand() > 1 - self.EXPLORATION_SEND_PROBABILTY
+
+		if send_to_rnd_drone and self.drone.buffer_length() == 1:
 			action = self.rnd_for_routing_ai.choice(list(neighbors_drones))
 		elif self.drone.buffer_length() >= 2:
 			action = -1
@@ -83,7 +91,6 @@ class AIRouting(BASE_routing):
 
 	
 	def __exploitation_1795030(self, neighbors_drones: Set[Drone], cell_index: int) -> Union[None, Literal[-1], Drone]:
-		max_value = -1
 		action = None
 		drone_score = float('-inf')
 
@@ -94,44 +101,30 @@ class AIRouting(BASE_routing):
 			return -1
 
 		for drone in neighbors_drones:
-			# TODO:
-			# - I'm going to the depot, my neighbours don't
-			# - I'm not goind to the depot, my neighbours do
-			# - Neither me and my neighbours are going to the depot
 
 			drone_depot_distance = util.euclidean_distance(drone.coords, self.simulator.depot_coordinates)
 			time_drone_to_depot = drone_depot_distance / drone.speed
-
+			
 			if drone.move_routing:
 				if self.drone.move_routing:
 					if drone.buffer_length() >= 1 and time_self_to_depot > time_drone_to_depot:
 						tmp_score = drone.buffer_length() * self.q_table[cell_index][drone.identifier] / time_drone_to_depot
 						if drone_score < tmp_score:
 							action = drone
-							drone_score = tmp_score
-
+							drone_score = tmp_score							
 				else:
+					# I'm not going to the depot, while my neighbours are
 					tmp_score = drone.buffer_length() * self.q_table[cell_index][drone.identifier] / time_drone_to_depot
 					if drone_score < tmp_score:
 						action = drone
 						drone_score = tmp_score
 			else:
+				# Neither me nor my neighbours are going to the depot
 				if not self.drone.move_routing and self.drone.buffer_length() < drone.buffer_length():
 					action = drone
+				# I'm going to the depot, while my neighbours are not
 				elif self.drone.move_routing:
 					action = None
-
-
-			# if self.q_table[cell_index][drone.identifier] > max_value:
-			# 	action = drone
-			# 	max_value = self.q_table[cell_index][drone.identifier]
-		time_self_to_depot = self_depot_distance / self.drone.speed
-		me_drone_score = time_self_to_depot * self.drone.buffer_length() * self.q_table[cell_index][self.drone.identifier]
-		#if not self.drone.move_routing and drone_score < me_drone_score and me_drone_score > 0:
-		#	action = -1
-			#max_value = self.q_table[cell_index][self.drone.identifier]
-
-		#if self.q_table[cell_index][-1] > max_value: action = -1
 
 		return action
 
