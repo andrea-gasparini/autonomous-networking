@@ -18,14 +18,15 @@ def run_in_parallel(algorithms, drones, seeds, num_core, code):
     pool = Pool(processes=num_core)
     pool.map(run_process, processes)
 
+
 def run_process(process):
     os.system(process)
 
 if __name__ == "__main__":
     # execution
-    ALGO_TO_RUN = ["AI", "MGEO", "RND", "GEO"] # run algorithms
-    NDRONES = [2, 5, 10] # 15, 20, 30, 40
-    NSEEDS = 4  # 30
+    ALGO_TO_RUN = ["AI", "MGEO", "RND", "GEO", "OptimisticAI"] # run algorithms
+    NDRONES = [5, 15, 30] # 15, 20, 30, 40
+    NSEEDS = 1 # 30
     run_in_parallel(ALGO_TO_RUN, NDRONES, NSEEDS, NUM_CORE, CODE_TO_RUN)
 
     # plot

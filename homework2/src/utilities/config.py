@@ -1,4 +1,5 @@
 
+from src.routing_algorithms.optimistical_ai_routing import OptimisticAIRouting
 from src.routing_algorithms.georouting import GeoRouting
 from src.routing_algorithms.georouting_w_move import GeoMoveRouting
 from src.routing_algorithms.random_routing import RandomRouting
@@ -95,6 +96,7 @@ class RoutingAlgorithm(Enum):
     MGEO = GeoMoveRouting
     CLO = CloRouting
     AI = AIRouting
+    OptimisticAI = OptimisticAIRouting
 
     @staticmethod
     def keylist():
@@ -111,7 +113,7 @@ class ChannelError(Enum):
         return list(map(lambda c: c.name, ChannelError))
 
 
-ROUTING_ALGORITHM_W_FEEDBACK = ["AI", "ALGO1", "ALGO2"]
+ROUTING_ALGORITHM_W_FEEDBACK = ["AI", "OptimisitcAI", "ALGO2"]
 ROUTING_ALGORITHM = RoutingAlgorithm.AI
 CHANNEL_ERROR_TYPE = ChannelError.ON_DEVICE
 

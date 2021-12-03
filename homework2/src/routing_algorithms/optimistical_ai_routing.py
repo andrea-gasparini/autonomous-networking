@@ -6,7 +6,7 @@ from src.routing_algorithms.BASE_routing import BASE_routing
 from matplotlib import pyplot as plt
 from src.utilities import config
 
-class AIRouting(BASE_routing):
+class OptimisticAIRouting(BASE_routing):
 
 	ALPHA: float = 0.5
 	GAMMA: float = 0.6
@@ -56,12 +56,14 @@ class AIRouting(BASE_routing):
 				selected_drone = action
 				action = action.identifier
 			
+
 			if outcome == -1:
 				reward = -2
 			else:
 				reward = 2 * self.simulator.event_duration / delay
 
-		
+			
+
 			self.q_table[cell_index][action] += self.ALPHA * (reward + self.GAMMA * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action])
 
 			del self.taken_actions[id_event]
@@ -172,7 +174,7 @@ class AIRouting(BASE_routing):
 		action = None
 
 		if cell_index not in self.q_table:
-			self.q_table[cell_index] = [0 for i in range(self.simulator.n_drones + 1)]
+			self.q_table[cell_index] = [2 for i in range(self.simulator.n_drones + 1)]
 
 		packet_id_event: int = pkd.event_ref.identifier
 		neighbors_drones: Set[Drone] = {drone[1] for drone in opt_neighbors}
@@ -197,7 +199,7 @@ class AIRouting(BASE_routing):
 		self.taken_actions[pkd.event_ref.identifier] = (action, cell_index, next_cell_index)
 
 		if next_cell_index not in self.q_table:
-			self.q_table[next_cell_index] = [0 for i in range(self.simulator.n_drones + 1)]
+			self.q_table[next_cell_index] = [2 for i in range(self.simulator.n_drones + 1)]
 
 		return action
 
