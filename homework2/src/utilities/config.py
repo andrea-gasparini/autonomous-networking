@@ -5,6 +5,7 @@ from src.routing_algorithms.georouting_w_move import GeoMoveRouting
 from src.routing_algorithms.random_routing import RandomRouting
 from src.routing_algorithms.closeset_to_me_routing import CloRouting
 from src.routing_algorithms.ai_routing import AIRouting
+from src.routing_algorithms.q_learning_routing import QLearningRouting
 
 from enum import Enum
 
@@ -97,6 +98,7 @@ class RoutingAlgorithm(Enum):
     CLO = CloRouting
     AI = AIRouting
     OptimisticAI = OptimisticAIRouting
+    QLearning = QLearningRouting
 
     @staticmethod
     def keylist():
@@ -114,7 +116,7 @@ class ChannelError(Enum):
 
 
 ROUTING_ALGORITHM_W_FEEDBACK = ["AI", "OptimisitcAI", "ALGO2"]
-ROUTING_ALGORITHM = RoutingAlgorithm.AI
+ROUTING_ALGORITHM = RoutingAlgorithm.QLearning
 CHANNEL_ERROR_TYPE = ChannelError.ON_DEVICE
 
 COMMUNICATION_P_SUCCESS = 1   # float: probability to have success in a communication.
