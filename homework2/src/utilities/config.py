@@ -1,4 +1,5 @@
 
+from src.routing_algorithms.double_q_learning import DoubleQLearning
 from src.routing_algorithms.optimistical_ai_routing import OptimisticAIRouting
 from src.routing_algorithms.georouting import GeoRouting
 from src.routing_algorithms.georouting_w_move import GeoMoveRouting
@@ -99,6 +100,7 @@ class RoutingAlgorithm(Enum):
     AI = AIRouting
     OptimisticAI = OptimisticAIRouting
     QLearning = QLearningRouting
+    DoubleQLearning = DoubleQLearning
 
     @staticmethod
     def keylist():
@@ -115,8 +117,8 @@ class ChannelError(Enum):
         return list(map(lambda c: c.name, ChannelError))
 
 
-ROUTING_ALGORITHM_W_FEEDBACK = ["AI", "OptimisitcAI", "ALGO2"]
-ROUTING_ALGORITHM = RoutingAlgorithm.QLearning
+ROUTING_ALGORITHM_W_FEEDBACK = ["AI", "OptimisitcAI", "QLearning", "DoubleQLearning"]
+ROUTING_ALGORITHM = RoutingAlgorithm.DoubleQLearning
 CHANNEL_ERROR_TYPE = ChannelError.ON_DEVICE
 
 COMMUNICATION_P_SUCCESS = 1   # float: probability to have success in a communication.

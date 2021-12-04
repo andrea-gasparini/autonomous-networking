@@ -6,15 +6,15 @@ from src.routing_algorithms.BASE_routing import BASE_routing
 from matplotlib import pyplot as plt
 from src.utilities import config
 
-class AIRouting(BASE_routing):
+class DoubleQLearning(BASE_routing):
 
-	ALPHA: float = 0.5
-	GAMMA: float = 0.6
+	ALPHA: float = 0.6
+	GAMMA: float = 0.8
 	EPSILON: float = 0.2
 	"""
 	Probability of performing exploration
 	"""
-	EXPLORATION_SEND_PROBABILTY: float = 0.6
+	RANDOM_SELECTION_TABLE: float = 0.5
 	"""
 	Probabilty of sending the packet to a random drone during exploration
 	"""
@@ -29,8 +29,7 @@ class AIRouting(BASE_routing):
 		self.q_table: Dict[int, List[int]] = {} # {0: [0, ..., 0]}
 		#self.n_table: Dict[] = {}
 		self.force_exploration: bool = True
-
-		self.tot_energy_to_depot = 0
+		self.q_table_b: Dict[int, List[int]] = {} 
 
 
 	def feedback(self, drone: Drone, id_event: int, delay: int, outcome: int) -> None:
@@ -50,21 +49,22 @@ class AIRouting(BASE_routing):
 		# do something or train the model (?)
 		if id_event in self.taken_actions:
 			action, cell_index, next_cell_index = self.taken_actions[id_event]
-
+			
 			if action == None:
 				action = self.drone.identifier
-				selected_drone = self.drone
 			elif isinstance(action, Drone):
-				selected_drone = action
 				action = action.identifier
-			
+
 			if outcome == -1:
 				reward = -2
 			else:
-				reward = 2 * self.simulator.event_duration / delay
+				reward = 2 * drone.speed
 
-		
-			self.q_table[cell_index][action] += self.ALPHA * (reward + self.GAMMA * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action])
+
+			if self.rnd_for_routing_ai.rand() < 0.5:
+				self.q_table[cell_index][action] += self.ALPHA * (reward + self.GAMMA * (max(self.q_table_b[next_cell_index])) - self.q_table[cell_index][action])
+			else:
+				self.q_table_b[cell_index][action] += self.ALPHA * (reward + self.GAMMA * (max(self.q_table[next_cell_index])) - self.q_table_b[cell_index][action])
 
 			del self.taken_actions[id_event]
 
@@ -73,12 +73,19 @@ class AIRouting(BASE_routing):
 		""" Do exploration """
 		action = None
 
-		send_to_rnd_drone: bool = self.rnd_for_routing_ai.rand() > 1 - self.EXPLORATION_SEND_PROBABILTY
+		#send_to_rnd_drone: bool = self.rnd_for_routing_ai.rand() > 1 - self.EXPLORATION_SEND_PROBABILTY
 		neighbors_returning_to_depot: List[Drone] = [drone for drone in neighbors_drones if drone.move_routing]
+		neighbors_with_packets: List[Drone] = [drone for drone in neighbors_drones if self.drone.buffer_length() < drone.buffer_length()]
 
-		if send_to_rnd_drone and self.drone.buffer_length() == 1:
-			action = self.rnd_for_routing_ai.choice(list(neighbors_drones))
-		elif self.drone.buffer_length() >= 2:
+		if len(neighbors_drones) == 0:
+			if self.drone.buffer_length() == 0:
+				action = None
+			else:
+				if self.rnd_for_routing_ai.rand() < 0.5:
+					action = None
+				else:
+					action = -1
+		elif self.drone.buffer_length() >= 3 and not self.drone.move_routing and len(neighbors_drones) > 0:
 			action = -1 if len(neighbors_returning_to_depot) == 0 else self.rnd_for_routing_ai.choice(list(neighbors_returning_to_depot))
 		else:
 			action = None
@@ -86,70 +93,30 @@ class AIRouting(BASE_routing):
 		self.force_exploration = False
 
 		return action if action != self.drone else None
-
-	
-	def __exploitation_1795030(self, neighbors_drones: Set[Drone], cell_index: int) -> Union[None, Literal[-1], Drone]:
-		action = None
-		drone_score = float('-inf')
-
-		self_depot_distance = util.euclidean_distance(self.drone.coords, self.simulator.depot_coordinates)
-		time_self_to_depot = self_depot_distance / self.drone.speed
-
-		if len(neighbors_drones) == 0 and self.drone.buffer_length() > 2:
-			# self.tot_energy_to_depot += 
-			return -1
-
-		for drone in neighbors_drones:
-
-			drone_depot_distance = util.euclidean_distance(drone.coords, self.simulator.depot_coordinates)
-			time_drone_to_depot = drone_depot_distance / drone.speed
-			
-			if drone.move_routing:
-				if self.drone.move_routing:
-					if drone.buffer_length() >= 1 and time_self_to_depot > time_drone_to_depot:
-						tmp_score = drone.buffer_length() * self.q_table[cell_index][drone.identifier] / time_drone_to_depot
-						if drone_score < tmp_score:
-							action = drone
-							drone_score = tmp_score							
-				else:
-					# I'm not going to the depot, while my neighbours are
-					tmp_score = drone.buffer_length() * self.q_table[cell_index][drone.identifier] / time_drone_to_depot
-					if drone_score < tmp_score:
-						action = drone
-						drone_score = tmp_score
-			else:
-				# Neither me nor my neighbours are going to the depot
-				if not self.drone.move_routing and self.drone.buffer_length() < drone.buffer_length():
-					action = drone
-				# I'm going to the depot, while my neighbours are not
-				elif self.drone.move_routing:
-					action = None
-
-		return action
+		
 
 
 	def __exploitation(self, neighbors_drones: Set[Drone], cell_index: int) -> Union[None, Literal[-1], Drone]:
 		""" Do exploitation """	
-		max_value = -1
 		action = None
-		for drone in neighbors_drones:
-			
-			# if the drone has at least one packet and a neighbor moving to the depot
-			# pass the packet to that neighbor
-			if self.drone.buffer_length() >= 1 and drone.move_routing and not self.drone.move_routing:
-				return drone
 
-			if self.q_table[cell_index][drone.identifier] > max_value:
-				action = drone
-				max_value = self.q_table[cell_index][drone.identifier]
-
-
-		if self.q_table[cell_index][self.drone.identifier] > max_value:
-			action = None
-			max_value = self.q_table[cell_index][self.drone.identifier]
-
-		if self.q_table[cell_index][-1] > max_value: action = -1
-
+		if len(neighbors_drones) == 0 and self.drone.buffer_length() >= 3:
+			return -1
+		elif len(neighbors_drones) == 0:
+			return None
+		elif not self.drone.move_routing:
+			max_score = float('-inf')
+			rnd = self.rnd_for_routing_ai.rand()
+			for drone in neighbors_drones:
+				if rnd < 0.5:
+					if self.q_table[cell_index][drone.identifier] > max_score and self.drone.buffer_length() <= drone.buffer_length():
+						action = drone
+						max_score = self.q_table[cell_index][drone.identifier]
+				else:
+					if self.q_table_b[cell_index][drone.identifier] > max_score and self.drone.buffer_length() <= drone.buffer_length():
+						action = drone
+						max_score = self.q_table_b[cell_index][drone.identifier]
+				
 		return action
 
 
@@ -177,6 +144,9 @@ class AIRouting(BASE_routing):
 		if cell_index not in self.q_table:
 			self.q_table[cell_index] = [0 for i in range(self.simulator.n_drones + 1)]
 
+		if cell_index not in self.q_table_b:
+			self.q_table_b[cell_index] = [0 for i in range(self.simulator.n_drones + 1)]
+
 		packet_id_event: int = pkd.event_ref.identifier
 		neighbors_drones: Set[Drone] = {drone[1] for drone in opt_neighbors}
 
@@ -184,7 +154,7 @@ class AIRouting(BASE_routing):
 			neighbors_drones.add(self.drone)
 			action = self.__exploration(neighbors_drones)
 		else:
-			action = self.__exploitation_1795030(neighbors_drones, cell_index)
+			action = self.__exploitation(neighbors_drones, cell_index)
 		
 
 		# self.drone.history_path (which waypoint I traversed. We assume the mission is repeated)
@@ -201,6 +171,9 @@ class AIRouting(BASE_routing):
 
 		if next_cell_index not in self.q_table:
 			self.q_table[next_cell_index] = [0 for i in range(self.simulator.n_drones + 1)]
+
+		if next_cell_index not in self.q_table_b:
+			self.q_table_b[next_cell_index] = [0 for i in range(self.simulator.n_drones + 1)]
 
 		return action
 

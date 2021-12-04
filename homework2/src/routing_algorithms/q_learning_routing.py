@@ -10,7 +10,7 @@ class QLearningRouting(BASE_routing):
 
 	ALPHA: float = 0.6
 	GAMMA: float = 0.8
-	EPSILON: float = 0.05
+	EPSILON: float = 0.2
 	"""
 	Probability of performing exploration
 	"""
@@ -29,6 +29,8 @@ class QLearningRouting(BASE_routing):
 		self.q_table: Dict[int, List[int]] = {} # {0: [0, ..., 0]}
 		#self.n_table: Dict[] = {}
 		self.force_exploration: bool = True
+		self.tmp_energy = 0
+		self.is_returning = False
 
 
 	def feedback(self, drone: Drone, id_event: int, delay: int, outcome: int) -> None:
@@ -48,7 +50,6 @@ class QLearningRouting(BASE_routing):
 		# do something or train the model (?)
 		if id_event in self.taken_actions:
 			action, cell_index, next_cell_index = self.taken_actions[id_event]
-
 			if action == None:
 				action = self.drone.identifier
 				selected_drone = self.drone
@@ -62,7 +63,6 @@ class QLearningRouting(BASE_routing):
 			else:
 				reward = 2
 
-			
 
 			self.q_table[cell_index][action] += self.ALPHA * (reward + self.GAMMA * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action])
 
@@ -79,9 +79,9 @@ class QLearningRouting(BASE_routing):
 
 		if len(neighbors_drones) == 0:
 			action = None
-		elif 1 <= self.drone.buffer_length() < 5:
+		elif 1 <= self.drone.buffer_length() < 4:
 			action = None if len(neighbors_with_packets) == 0 else self.rnd_for_routing_ai.choice(list(neighbors_with_packets))
-		elif self.drone.buffer_length() >= 5 and not self.drone.move_routing and len(neighbors_drones) > 0:
+		elif self.drone.buffer_length() >= 4 and not self.drone.move_routing and len(neighbors_drones) > 0:
 			action = -1 if len(neighbors_returning_to_depot) == 0 else self.rnd_for_routing_ai.choice(list(neighbors_returning_to_depot))
 		else:
 			action = None
@@ -96,8 +96,8 @@ class QLearningRouting(BASE_routing):
 		""" Do exploitation """	
 		action = None
 
-		if len(neighbors_drones) == 0 and self.drone.buffer_length() >= 5:
-			return None
+		if len(neighbors_drones) == 0 and self.drone.buffer_length() >= 2:
+			return -1
 		elif len(neighbors_drones) == 0:
 			return None
 		elif not self.drone.move_routing:
