@@ -103,7 +103,7 @@ class AIRouting(BASE_routing):
 
 			drone_depot_distance = util.euclidean_distance(drone.coords, self.simulator.depot_coordinates)
 			time_drone_to_depot = drone_depot_distance / drone.speed
-			
+
 			if drone.move_routing:
 				if self.drone.move_routing:
 					if drone.buffer_length() >= 1 and time_self_to_depot > time_drone_to_depot:
@@ -124,31 +124,6 @@ class AIRouting(BASE_routing):
 				# I'm going to the depot, while my neighbours are not
 				elif self.drone.move_routing:
 					action = None
-
-		return action
-
-
-	def __exploitation(self, neighbors_drones: Set[Drone], cell_index: int) -> Union[None, Literal[-1], Drone]:
-		""" Do exploitation """	
-		max_value = -1
-		action = None
-		for drone in neighbors_drones:
-			
-			# if the drone has at least one packet and a neighbor moving to the depot
-			# pass the packet to that neighbor
-			if self.drone.buffer_length() >= 1 and drone.move_routing and not self.drone.move_routing:
-				return drone
-
-			if self.q_table[cell_index][drone.identifier] > max_value:
-				action = drone
-				max_value = self.q_table[cell_index][drone.identifier]
-
-
-		if self.q_table[cell_index][self.drone.identifier] > max_value:
-			action = None
-			max_value = self.q_table[cell_index][self.drone.identifier]
-
-		if self.q_table[cell_index][-1] > max_value: action = -1
 
 		return action
 

@@ -118,7 +118,7 @@ class ChannelError(Enum):
 
 
 ROUTING_ALGORITHM_W_FEEDBACK = ["AI", "OptimisitcAI", "QLearning", "DoubleQLearning"]
-ROUTING_ALGORITHM = RoutingAlgorithm.DoubleQLearning
+ROUTING_ALGORITHM = RoutingAlgorithm.QLearning
 CHANNEL_ERROR_TYPE = ChannelError.ON_DEVICE
 
 COMMUNICATION_P_SUCCESS = 1   # float: probability to have success in a communication.

@@ -50,20 +50,23 @@ class QLearningRouting(BASE_routing):
 		# do something or train the model (?)
 		if id_event in self.taken_actions:
 			action, cell_index, next_cell_index = self.taken_actions[id_event]
+			selected_drone = self.drone
 			if action == None:
+				#selected_drone = self.drone
 				action = self.drone.identifier
-				selected_drone = self.drone
 			elif isinstance(action, Drone):
 				selected_drone = action
 				action = action.identifier
 			
-
 			if outcome == -1:
 				reward = -2
 			else:
-				reward = 2
-
-
+				buffer_len = selected_drone.buffer_length() if action != -1 else self.drone.buffer_length()
+				reward = 2 * buffer_len
+				#print(action, drone, self.drone)
+				if action == -1 and drone == self.drone or selected_drone == drone:
+					energy_spent = self.simulator.metrics.energy_spent_for_active_movement[action if action != -1 else self.drone.identifier]
+					reward += 1 / energy_spent
 			self.q_table[cell_index][action] += self.ALPHA * (reward + self.GAMMA * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action])
 
 			del self.taken_actions[id_event]
@@ -72,7 +75,6 @@ class QLearningRouting(BASE_routing):
 	def __exploration(self, neighbors_drones: Set[Drone]) -> Union[None, Literal[-1], Drone]:
 		""" Do exploration """
 		action = None
-
 		#send_to_rnd_drone: bool = self.rnd_for_routing_ai.rand() > 1 - self.EXPLORATION_SEND_PROBABILTY
 		neighbors_returning_to_depot: List[Drone] = [drone for drone in neighbors_drones if drone.move_routing]
 		neighbors_with_packets: List[Drone] = [drone for drone in neighbors_drones if self.drone.buffer_length() < drone.buffer_length()]
@@ -95,7 +97,10 @@ class QLearningRouting(BASE_routing):
 	def __exploitation(self, neighbors_drones: Set[Drone], cell_index: int) -> Union[None, Literal[-1], Drone]:
 		""" Do exploitation """	
 		action = None
-
+		self_depot_distance = util.euclidean_distance(self.drone.coords, self.simulator.depot_coordinates)
+		if self_depot_distance <= 400:
+			return -1
+		
 		if len(neighbors_drones) == 0 and self.drone.buffer_length() >= 2:
 			return -1
 		elif len(neighbors_drones) == 0:
