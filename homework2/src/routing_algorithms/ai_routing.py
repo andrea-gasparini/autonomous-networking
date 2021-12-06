@@ -103,6 +103,7 @@ class AIRouting(BASE_routing):
 		if len(neighbors_drones) == 0 and self.drone.buffer_length() > 2:
 			return -1
 
+		me_score = self.drone.buffer_length() * self.q_table[cell_index][self.drone.identifier] / time_self_to_depot
 		for drone in neighbors_drones:
 
 			drone_depot_distance = util.euclidean_distance(drone.coords, self.simulator.depot_coordinates)
@@ -112,7 +113,7 @@ class AIRouting(BASE_routing):
 				if self.drone.move_routing:
 					if drone.buffer_length() >= 1 and time_self_to_depot > time_drone_to_depot:
 						tmp_score = drone.buffer_length() * self.q_table[cell_index][drone.identifier] / time_drone_to_depot
-						if drone_score < tmp_score:
+						if drone_score <= tmp_score and tmp_score >= me_score:
 							action = drone
 							drone_score = tmp_score							
 				else:

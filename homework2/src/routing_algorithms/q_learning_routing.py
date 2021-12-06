@@ -67,12 +67,13 @@ class QLearningRouting(BASE_routing):
 			if outcome == -1:
 				reward = -2
 			else:
-				buffer_len = selected_drone.buffer_length() if action != -1 else self.drone.buffer_length()
+				buffer_len = drone.buffer_length() if action != -1 else self.drone.buffer_length()
 				reward = 2 * buffer_len
-				#print(action, drone, self.drone)
-				if action == -1 and drone == self.drone or selected_drone == drone:
-					energy_spent = self.simulator.metrics.energy_spent_for_active_movement[action if action != -1 else self.drone.identifier]
+				if action == -1 and drone == self.drone:
+					energy_spent = self.simulator.metrics.energy_spent_for_active_movement[self.drone.identifier]
+
 					reward += 1 / energy_spent
+
 			self.q_table[cell_index][action] += self.ALPHA * (reward + self.GAMMA * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action])
 
 			del self.taken_actions[id_event]
@@ -145,7 +146,6 @@ class QLearningRouting(BASE_routing):
 		if cell_index not in self.q_table:
 			self.q_table[cell_index] = [0 for i in range(self.simulator.n_drones + 1)]
 
-		packet_id_event: int = pkd.event_ref.identifier
 		neighbors_drones: Set[Drone] = {drone[1] for drone in opt_neighbors}
 
 		if self.force_exploration or self.rnd_for_routing_ai.rand() < self.EPSILON:
@@ -154,12 +154,6 @@ class QLearningRouting(BASE_routing):
 		else:
 			action = self.__exploitation(neighbors_drones, cell_index)
 		
-
-		# self.drone.history_path (which waypoint I traversed. We assume the mission is repeated)
-		# self.drone.residual_energy (that tells us when I'll come back to the depot).
-		#  .....
-
-		# Store your current action --- you can add several stuff if needed to take a reward later
 		next_cell_index = util.TraversedCells.coord_to_cell(size_cell=self.simulator.prob_size_cell,
 														width_area=self.simulator.env_width,
 														x_pos=self.drone.next_target()[0],
