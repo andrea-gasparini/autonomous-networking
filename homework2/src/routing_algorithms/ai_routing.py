@@ -8,8 +8,14 @@ from src.utilities import config
 
 class AIRouting(BASE_routing):
 
-	ALPHA: float = 0.5
-	GAMMA: float = 0.6
+	ALPHA: float = 0
+	"""
+	Learning rate
+	"""
+	GAMMA: float = 0
+	"""
+	Importance of future rewards
+	"""
 	EPSILON: float = 0.2
 	"""
 	Probability of performing exploration
@@ -30,7 +36,6 @@ class AIRouting(BASE_routing):
 		#self.n_table: Dict[] = {}
 		self.force_exploration: bool = True
 
-		self.tot_energy_to_depot = 0
 
 
 	def feedback(self, drone: Drone, id_event: int, delay: int, outcome: int) -> None:
@@ -96,7 +101,6 @@ class AIRouting(BASE_routing):
 		time_self_to_depot = self_depot_distance / self.drone.speed
 
 		if len(neighbors_drones) == 0 and self.drone.buffer_length() > 2:
-			# self.tot_energy_to_depot += 
 			return -1
 
 		for drone in neighbors_drones:
