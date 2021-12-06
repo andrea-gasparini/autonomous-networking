@@ -1,4 +1,7 @@
 import numpy as np
+import json
+import os
+
 from typing import List, Tuple, Dict, Union, Set, Literal
 from src.entities.uav_entities import Drone, DataPacket
 from src.utilities import utilities as util
@@ -172,4 +175,23 @@ class QLearningRouting(BASE_routing):
 			This method is called at the end of the simulation, can be useful to print some
 			metrics about the learning process
 		"""
-		pass
+
+		assert os.path.isdir("data"), "Can not save metrics, data directory does not exist"
+
+		with open(os.path.join("data", "metrics.json"), "a+") as f:
+
+			obj = {
+				"alpha": self.ALPHA,		## np.arange(0.4, 1, 0.2)
+				"gamma": self.GAMMA,		## np.arange(0.4, 1, 0.2)
+				"epsilon": self.EPSILON,	## np.arange(0.05, 0.21, 0.05)
+				"exploration-send-probability": self.EXPLORATION_SEND_PROBABILTY,
+				"n-drones": self.simulator.n_drones,
+				"seed": self.simulator.seed,
+				"score": self.simulator.score(),
+			}
+
+			print(obj)
+
+			json.dump(obj, f)
+
+			f.write("\n")
