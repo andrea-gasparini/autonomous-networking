@@ -14,7 +14,7 @@ class AIRouting(BASE_routing):
 	"""
 	GAMMA: float = 0
 	"""
-	Importance of future rewards
+	Discount factor, i.e. the importance of future rewards
 	"""
 	EPSILON: float = 0.2
 	"""

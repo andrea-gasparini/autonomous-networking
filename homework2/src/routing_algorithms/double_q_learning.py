@@ -9,7 +9,13 @@ from src.utilities import config
 class DoubleQLearning(BASE_routing):
 
 	ALPHA: float = 0.6
+	"""
+	Learning rate
+	"""
 	GAMMA: float = 0.8
+	"""
+	Discount factor, i.e. the importance of future rewards
+	"""
 	EPSILON: float = 0.2
 	"""
 	Probability of performing exploration
