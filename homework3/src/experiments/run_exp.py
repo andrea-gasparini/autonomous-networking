@@ -2,12 +2,11 @@ import argparse
 import os
 from multiprocessing import Pool
 import datetime as dt
-import numpy as np
 
 
 CODE_TO_RUN = "python3 -m src.experiments.experiment_ndrones -nd {} -i_s {} -e_s {} -alg {}"
 PLOT_CODE = "python3 -m src.experiments.json_and_plot -i_s {} -e_s {} "
-NUM_CORE = 8
+NUM_CORE = 4
 
 def run_in_parallel(algorithms, drones, seeds, num_core, code):
     processes = []
@@ -23,10 +22,10 @@ def run_process(process):
 
 if __name__ == "__main__":
     # execution
-    ALGO_TO_RUN = ["AI", "MGEO", "GEO"] # run algorithms
-    NDRONES = [2, 5, 10] # 15, 20, 30, 40
+    ALGO_TO_RUN = ["AI", "MGEO", "TESTAI"] # run algorithms
+    NDRONES = [20, 30, 40] # 15, 20, 30, 40
     NSEEDS = 4  # 30
-    #run_in_parallel(ALGO_TO_RUN, NDRONES, NSEEDS, NUM_CORE, CODE_TO_RUN)
+    run_in_parallel(ALGO_TO_RUN, NDRONES, NSEEDS, NUM_CORE, CODE_TO_RUN)
 
     # plot
     algo_command = "-exp_suffix "

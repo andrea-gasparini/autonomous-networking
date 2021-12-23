@@ -7,7 +7,7 @@ from src.utilities import config
 from typing import List, Tuple, Dict, Union, Set, Literal
 from src.entities.uav_entities import Drone, DataPacket
 
-class AIRouting(BASE_routing):
+class TestAIRouting(BASE_routing):
     def __init__(self, drone: Drone, simulator):
         BASE_routing.__init__(self, drone, simulator)
         # random generator
@@ -49,7 +49,7 @@ class AIRouting(BASE_routing):
             if outcome == -1:
                 reward = -2
             else:
-                reward = 2 / (time + 0.0001) * speed 
+                reward = 2 * speed
 
             self.q_table[cell_index][action_id] += 0.67 * (reward + 0.8 * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action_id])
             
@@ -67,6 +67,10 @@ class AIRouting(BASE_routing):
                                                         x_pos=self.drone.coords[0],  # e.g. 1500
                                                         y_pos=self.drone.coords[1])[0]  # e.g. 500
         #print("Drone: ", self.drone.identifier, " - i-th cell:",  cell_index, " - center:", self.simulator.cell_to_center_coords[cell_index])
+
+        if cell_index not in self.q_table:
+            self.q_table[cell_index] = [0 for i in range(self.simulator.n_drones + len(self.simulator.depot.list_of_coords))]
+
         action = None
 
         # self.drone.history_path (which waypoint I traversed. We assume the mission is repeated)
@@ -83,61 +87,28 @@ class AIRouting(BASE_routing):
         first_depot_distance_time = util.euclidean_distance(self.drone.coords, first_depot_coordinates) / self.drone.speed
         second_depot_distance_time = util.euclidean_distance(self.drone.coords, second_depot_coordinates) / self.drone.speed
 
-        sum_steps = 0
-        for packet in self.drone.all_packets():
-            sum_steps += self.simulator.cur_step - packet.time_step_creation
-        
-        
-
-        if cell_index not in self.q_table:
-            self.q_table[cell_index] = [0 for i in range(self.simulator.n_drones + len(self.simulator.depot.list_of_coords))]
-
         if self.force_exploration or self.rnd_for_routing_ai.rand() < self.epsilon:
-            if self.rnd_for_routing_ai.rand() < 0.5:
-                if first_depot_distance_time < second_depot_distance_time and self.drone.buffer_length() >= 2:
-                    action = -1
-                elif first_depot_distance_time > second_depot_distance_time and self.drone.buffer_length() >= 2:
-                    action = -2
-            else:
-                action = self.rnd_for_routing_ai.choice(list(neighbor_drones)) if len(neighbor_drones) > 0 else None
-            
+            action = self.rnd_for_routing_ai.choice(list(neighbor_drones)) if len(neighbor_drones) > 0 else None
             self.force_exploration = False
         else:
-            # exploitation
-            
-            drones_returning = [drone for drone in neighbor_drones if drone.move_routing]
-            
-            best_action = self.q_table[cell_index].index(max(self.q_table[cell_index]))
-            drones_id = [drone.identifier for drone in neighbor_drones]
-            drone_first_depot_distance = util.euclidean_distance(self.drone.next_target(), first_depot_coordinates)
-            drone_second_depot_distance = util.euclidean_distance(self.drone.next_target(), second_depot_coordinates)
-            avg_dist = (drone_first_depot_distance + drone_second_depot_distance) // 2
-
-            if sum_steps // len(self.drone.all_packets()) >= 150 and len(neighbor_drones) == 0:
+            if len(neighbor_drones) == 0 and self.drone.buffer_length() > 0:
                 action = -1 if first_depot_distance_time < second_depot_distance_time else -2
-            elif best_action not in drones_id and not self.drone.move_routing:
-                tmp_score = float('-inf')
-                tmp_action = self.drone
-                for drone in drones_returning:
-                    drone_first_depot_distance = util.euclidean_distance(drone.next_target(), first_depot_coordinates)
-                    drone_second_depot_distance = util.euclidean_distance(drone.next_target(), second_depot_coordinates)
-                    avg_dist = (drone_first_depot_distance + drone_second_depot_distance) // 2
-                    drone_score = drone.speed * drone.buffer_length() / avg_dist
-                    if isinstance(tmp_action, Drone):
-                        if tmp_score < drone_score:
-                            tmp_action = drone
-                            tmp_score = drone_score
-                action = tmp_action        
-            elif not self.drone.move_routing and best_action in drones_id:
-                action = [drone for drone in neighbor_drones if drone.identifier == best_action][0]
             else:
-                neighbor_drones.add(self.drone)
-                best_drone_list = sorted([(drone, drone.speed) for drone in neighbor_drones if drone.move_routing], key=lambda x: (x[1]))
-                if len(best_drone_list) <= 0:
-                    action = None
+                max_value = max(self.q_table[cell_index][:self.simulator.n_drones])
+                if max_value > 0:
+                    best_action = self.q_table[cell_index].index(max(self.q_table[cell_index][:self.simulator.n_drones]))
+                    drones_id: Set[int] = {drone.identifier for drone in neighbor_drones}
+                    if best_action in drones_id:
+                        action = [drone for drone in neighbor_drones if drone.identifier == best_action][0]
                 else:
-                    action = best_drone_list[0][0]
+                    # I choice the best drone that is returning.
+                    drones_returning = sorted([(drone, drone.speed) for drone in neighbor_drones if drone.move_routing], key=lambda x: x[1])
+                    if len(drones_returning) > 0:
+                        action = drones_returning[0][0]
+                    else:
+                        action = None if self.drone.buffer_length() <= 0 else -1 if first_depot_distance_time < second_depot_distance_time else -2
 
+            
         next_cell_index = util.TraversedCells.coord_to_cell(size_cell=self.simulator.prob_size_cell,
                                                             width_area=self.simulator.env_width,
                                                             x_pos=self.drone.next_target()[0],
@@ -145,37 +116,6 @@ class AIRouting(BASE_routing):
         
         if next_cell_index not in self.q_table:
             self.q_table[next_cell_index] = [0 for i in range(self.simulator.n_drones + len(self.simulator.depot.list_of_coords))]
-
-        # Store your current action --- you can add several stuff if needed to take a reward later
-        if action == -1 or action == -2:
-            # we're returning to depot.. store also the time.
-            if first_depot_distance_time < second_depot_distance_time:
-                time = first_depot_distance_time
-            else:
-                time = second_depot_distance_time
-            self.taken_actions[pkd.event_ref.identifier] = (action, cell_index, next_cell_index, time)
-        else:
-            if action == None:
-                tm_drone = self.drone
-            else:
-                tm_drone = action
-            drone_first_depot_distance = util.euclidean_distance(tm_drone.next_target(), first_depot_coordinates)
-            drone_second_depot_distance = util.euclidean_distance(tm_drone.next_target(), second_depot_coordinates)
-
-            sum_steps = 0
-            for packet in tm_drone.all_packets():
-                sum_steps += self.simulator.cur_step - packet.time_step_creation
-
-            if drone_first_depot_distance < drone_second_depot_distance:
-                time = drone_first_depot_distance / tm_drone.speed / (sum_steps // (len(tm_drone.all_packets()) + 1) + 1)
-            else:
-                time = drone_second_depot_distance / tm_drone.speed / (sum_steps // (len(tm_drone.all_packets()) + 1) + 1)
-            self.taken_actions[pkd.event_ref.identifier] = (action, cell_index, next_cell_index, time)
-        if isinstance(action, Drone):
-            self.pkts_transmitted[pkd.event_ref.identifier] = (self.simulator.cur_step, action)
-
-            
-
         # return action:
         # None --> no transmission
         # -1 --> move to first depot (self.simulator.depot.list_of_coords[0]
