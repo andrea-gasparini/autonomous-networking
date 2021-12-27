@@ -1,4 +1,5 @@
 
+from src.routing_algorithms.ai_two_routing import AiTwoRouting
 from src.routing_algorithms.test_ai_routing import TestAIRouting
 from src.routing_algorithms.georouting import GeoRouting
 from src.routing_algorithms.georouting_w_move import GeoMoveRouting
@@ -28,7 +29,7 @@ Attributes that one needs tweak often are tagged with # ***
 # ----------------------------------------------------------------------------------
 
 # ----------------------- PATH DRONES -----------------------------------------#
-SWEEP_PATH = False
+SWEEP_PATH = True
 LENGHT_METERS_TOUR = 30000 # (DO NOT CHANGE)
 HOVERING = 600  # int : steps of hovering
 CIRCLE_PATH = False # bool: whether to use cirlce paths around the depot
@@ -59,7 +60,7 @@ SAVE_PLOT_DIR = "data/plots/"
 
 # add constants here...
 # ----------------------------- SIMULATION PARAMS. ---------------------------- #
-SIM_DURATION = 48000 # int: steps of simulation. # ***
+SIM_DURATION = 15000 # int: steps of simulation. # ***
 TS_DURATION = 0.150   # float: seconds duration of a step in seconds.
 SEED = 2            # int: seed of this simulation.
 
@@ -98,6 +99,7 @@ class RoutingAlgorithm(Enum):
     CLO = CloRouting
     AI = AIRouting
     TESTAI = TestAIRouting
+    AITWO = AiTwoRouting
 
     @staticmethod
     def keylist():
@@ -114,8 +116,8 @@ class ChannelError(Enum):
         return list(map(lambda c: c.name, ChannelError))
 
 
-ROUTING_ALGORITHM_W_FEEDBACK = ["AI", "TESTAI", "ALGO2"]
-ROUTING_ALGORITHM = RoutingAlgorithm.TESTAI
+ROUTING_ALGORITHM_W_FEEDBACK = ["AI", "AITWO", "MGEO"]
+ROUTING_ALGORITHM = RoutingAlgorithm.AITWO
 CHANNEL_ERROR_TYPE = ChannelError.ON_DEVICE
 
 COMMUNICATION_P_SUCCESS = 1   # float: probability to have success in a communication.

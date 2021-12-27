@@ -9,7 +9,7 @@ import matplotlib.patches as mpatches
 import collections
 import matplotlib
 from src.utilities import config
-
+import time
 
 from argparse import ArgumentParser
 
@@ -131,7 +131,7 @@ def plot_ndrones(filename_format : list, ndrones :list, metric : str,
     if metric == "Routing time / mission time":
         metric ="routing_time_mission_time"
     #plt.tight_layout()
-    plt.savefig(out_dir + metric + ".png")
+    plt.savefig(out_dir + metric + "_" + str(int(time.time())) + ".png")
     #plt.show()
     plt.clf()
 
