@@ -13,7 +13,7 @@ class AIRouting(BASE_routing):
         # random generator
         self.rnd_for_routing_ai = np.random.RandomState(self.simulator.seed)
         self.taken_actions = {}  #id event : (old_action)
-        self.epsilon = 0.02
+        self.epsilon = 0.06
         self.q_table: Dict[int, List[int]] = {} # {0: [0, ...., 0]}
         self.force_exploration = True
         self.pkts_transmitted = {}
@@ -49,9 +49,9 @@ class AIRouting(BASE_routing):
             if outcome == -1:
                 reward = -2
             else:
-                reward = 2 / (time + 0.0001) * speed 
+                reward = 2 / (time + 0.0001) * speed / delay
 
-            self.q_table[cell_index][action_id] += 0.67 * (reward + 0.8 * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action_id])
+            self.q_table[cell_index][action_id] += 0.3 * (reward + 0.5 * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action_id])
             
             del self.taken_actions[id_event]
 
@@ -153,6 +153,7 @@ class AIRouting(BASE_routing):
                 time = first_depot_distance_time
             else:
                 time = second_depot_distance_time
+
             self.taken_actions[pkd.event_ref.identifier] = (action, cell_index, next_cell_index, time)
         else:
             if action == None:
@@ -170,9 +171,8 @@ class AIRouting(BASE_routing):
                 time = drone_first_depot_distance / tm_drone.speed / (sum_steps // (len(tm_drone.all_packets()) + 1) + 1)
             else:
                 time = drone_second_depot_distance / tm_drone.speed / (sum_steps // (len(tm_drone.all_packets()) + 1) + 1)
+
             self.taken_actions[pkd.event_ref.identifier] = (action, cell_index, next_cell_index, time)
-        if isinstance(action, Drone):
-            self.pkts_transmitted[pkd.event_ref.identifier] = (self.simulator.cur_step, action)
 
             
 
