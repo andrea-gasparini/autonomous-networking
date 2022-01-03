@@ -4,10 +4,11 @@ from src.utilities import utilities as util
 from src.routing_algorithms.BASE_routing import BASE_routing
 from matplotlib import pyplot as plt
 from src.utilities import config
-from typing import List, Tuple, Dict, Union, Set
+from typing import List, Tuple, Dict, Union, Set, Literal
 from src.entities.uav_entities import Drone, DataPacket
 import math
 
+Action = Union[Drone, Literal[-1], Literal[-2], None]
 
 class GradientBanditAI(BASE_routing):
 
@@ -26,7 +27,7 @@ class GradientBanditAI(BASE_routing):
         self.mean_reward = 0
         self.n = 0
 
-    def feedback(self, drone, id_event, delay, outcome, depot_index=None):
+    def feedback(self, drone: Drone, id_event, delay, outcome, depot_index = None):
         """ return a possible feedback, if the destination drone has received the packet """
         if id_event in self.taken_actions:
 
@@ -53,8 +54,12 @@ class GradientBanditAI(BASE_routing):
 
             del self.taken_actions[id_event]
 
-    def softmax(self, neighbors_drones: List[Drone]) -> None:
-        neighbors_H = np.array([self.H[drone.identifier] for drone in neighbors_drones[:-1]] + [self.H[neighbors_drones[-1]]])
+    def softmax(self, actions: List[Action]) -> None:
+        if isinstance(actions[-1], int):
+            new_H = [self.H[drone.identifier] for drone in actions[:-1]] + [self.H[actions[-1]]]
+        else:
+            new_H = [self.H[drone.identifier] for drone in actions]
+        neighbors_H = np.array(new_H)
         self.prob_action = np.exp(neighbors_H - np.max(neighbors_H)) / np.sum(np.exp(neighbors_H - np.max(neighbors_H)), axis=0)
     
     def update_H(self, action, reward, actions):
@@ -72,6 +77,69 @@ class GradientBanditAI(BASE_routing):
                 self.H[act.identifier] -= learning_rate * (reward - self.mean_reward) * (self.prob_action[i])
             else:
                 self.H[act] -= learning_rate * (reward - self.mean_reward) * (self.prob_action[-1])
+
+    def calculate_best_depot(self, coords, next_target, depots_coords):
+        first_depot_coordinates = depots_coords[0]
+        second_depot_coordinates = depots_coords[1]
+
+        first_depot_distance = util.euclidean_distance(coords, first_depot_coordinates)
+        second_depot_distance = util.euclidean_distance(coords, second_depot_coordinates)
+
+        first_depot_distance_next = util.euclidean_distance(next_target, first_depot_coordinates)
+        second_depot_distance_next = util.euclidean_distance(next_target, second_depot_coordinates)
+
+        min_distance_list = [
+            first_depot_distance_next,
+            second_depot_distance_next,
+            first_depot_distance,
+            second_depot_distance
+        ]
+
+        min_distance_idx = np.argmin(min_distance_list)
+        #print(min_distance_list[min_distance_idx])
+        if min_distance_idx >= 2 and min_distance_list[min_distance_idx] < 550:
+            # min distance is first_depot_distance or second_depot_distance
+            # move to the the nearest depot
+            return -1 if first_depot_distance < second_depot_distance else -2
+        else:
+            # min distance is first_depot_distance_next or second_depot_distance_next
+            # do not transmit the packet and move to the next target
+            return self.drone
+
+    def choose_by_drone_score(self, actions: List[Action], ) -> List[Action]:
+
+        if len(actions) == 2:
+            return actions
+            
+        first_depot_coordinates = self.simulator.depot.list_of_coords[0]
+        me_to_first_depot = util.euclidean_distance(self.drone.coords, first_depot_coordinates)
+
+        second_depot_coordinates = self.simulator.depot.list_of_coords[1]
+        me_to_second_depot = util.euclidean_distance(self.drone.coords, second_depot_coordinates)
+
+
+        my_distance = me_to_first_depot if me_to_first_depot < me_to_second_depot else me_to_second_depot
+        my_score = self.drone.speed + (math.log(self.drone.buffer_length()) if self.drone.buffer_length() > 0 else 0) / (my_distance + 0.0001)
+
+        drone_score = my_score
+        actions_to_return = [self.drone]
+        for action in actions[:-1]:
+            action_to_first_depot = util.euclidean_distance(action.coords, first_depot_coordinates)
+            action_to_second_depot = util.euclidean_distance(action.coords, second_depot_coordinates)
+            distance = action_to_first_depot if action_to_first_depot < action_to_second_depot else action_to_second_depot
+            tmp_drone_score = (action.speed + (math.log(action.buffer_length()) if action.buffer_length() > 0 else 0)) / (distance + 0.0001)
+
+            if tmp_drone_score >= drone_score:
+                actions_to_return.append(action)
+        
+        #if len(actions_to_return) == 1:
+        ret = self.calculate_best_depot(self.drone.coords, self.drone.next_target(), [first_depot_coordinates, second_depot_coordinates])
+        if ret not in actions_to_return:
+            actions_to_return.append(ret)
+        #else:
+        #    actions_to_return.append(actions[-1])
+            
+        return actions_to_return
         
     def relay_selection(self, opt_neighbors, pkd):
         """ arg min score -> geographical approach, take the drone closest to the depot """
@@ -84,20 +152,21 @@ class GradientBanditAI(BASE_routing):
         second_depot_coordinates = self.simulator.depot.list_of_coords[1]
         me_to_second_depot = util.euclidean_distance(self.drone.coords, second_depot_coordinates)
 
-        if not self.drone.move_routing:
-            actions: List[Union[Drone, int]] = list({drone[1] for drone in opt_neighbors})
-            actions.append(self.drone)
-        else:
-            actions: List[Union[Drone, int]] = list({drone[1] for drone in opt_neighbors if drone[1].move_routing})
-            actions.append(self.drone)
+        #if not self.drone.move_routing:
+        actions: List[Action] = list({drone[1] for drone in opt_neighbors})
+        actions.append(self.drone)
+        #else:
+        #    actions: List[Action] = list({drone[1] for drone in opt_neighbors if drone[1].move_routing})
+        #    actions.append(self.drone)
         
         # l = [sdrone, -2], l[-2] = sdrone
 
-        if me_to_first_depot < me_to_second_depot:
-            actions.append(-1)
-        else:
-            actions.append(-2)
+        #if me_to_f#irst_depot < me_to_second_depot:
+        #    actions.append(-1)
+        #else:
+        #    actions.append(-2)
 
+        actions = self.choose_by_drone_score(actions)
         self.softmax(actions)
         action = np.random.choice(actions, p=self.prob_action)
         
@@ -115,8 +184,8 @@ class GradientBanditAI(BASE_routing):
             distance = me_to_first_depot if me_to_first_depot < me_to_second_depot else me_to_second_depot
             reward = self.drone.speed * self.drone.buffer_length() / distance
         
-            #self.simulator.metrics.energy_spent_for_active_movement[self.drone.identifier]
-        
+            #self.simulator.metrics.energy_spent_for_active_movement[self.drone.identifier]    
+
         self.n += 1
         self.mean_reward += (reward - self.mean_reward) / self.n
         #print(reward - self.mean_reward, reward)
