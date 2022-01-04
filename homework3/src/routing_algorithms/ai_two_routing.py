@@ -9,12 +9,18 @@ from src.entities.uav_entities import Drone, DataPacket
 import math
 
 class AiTwoRouting(BASE_routing):
+
+    EPSILON = 0.02
+
+    AVG_PCKT_THRESHOLD = 500
+
+    TOTAL_TIME_AVG_PCKT_THRESHOLD = 1000
+
     def __init__(self, drone: Drone, simulator):
         BASE_routing.__init__(self, drone, simulator)
         # random generator
         self.rnd_for_routing_ai = np.random.RandomState(self.simulator.seed)
         self.taken_actions = {}  #id event : (old_action)
-        self.epsilon = 0.02
         self.q_table: Dict[int, List[int]] = {} # {0: [0, ...., 0]}
         self.force_exploration = True
         self.pkts_transmitted = {}
@@ -32,8 +38,8 @@ class AiTwoRouting(BASE_routing):
             # outcome == -1 if the packet/event expired; 0 if the packets has been delivered to the depot
             # Feedback from a delivered or expired packet
             print("Drone: ", self.drone.identifier, "---------- just received a feedback:",
-                  "Drone:", drone, " - id-event:", id_event, " - delay:",  delay, " - outcome:", outcome,
-                  " - to depot: ", depot_index)
+                "Drone:", drone, " - id-event:", id_event, " - delay:",  delay, " - outcome:", outcome,
+                " - to depot: ", depot_index)
 
         # Be aware, due to network errors we can give the same event to multiple drones and receive multiple feedback for the same packet!!
         # NOTE: reward or update using the old action!!
@@ -87,8 +93,6 @@ class AiTwoRouting(BASE_routing):
             # min distance is first_depot_distance_next or second_depot_distance_next
             # do not transmit the packet and move to the next target
             return None
-        
-        
 
     def relay_selection(self, opt_neighbors, pkd):
         """ arg min score  -> geographical approach, take the drone closest to the depot """
@@ -121,7 +125,7 @@ class AiTwoRouting(BASE_routing):
         first_depot_coordinates = self.simulator.depot.list_of_coords[0]
         second_depot_coordinates = self.simulator.depot.list_of_coords[1]
 
-        if self.force_exploration or self.rnd_for_routing_ai.rand() < self.epsilon:
+        if self.force_exploration or self.rnd_for_routing_ai.rand() < self.EPSILON:
             self.exploration_count += 1
             action = None if len(neighbors_drones) == 0 else self.rnd_for_routing_ai.choice(list(neighbors_drones))
             self.force_exploration = False
@@ -149,10 +153,10 @@ class AiTwoRouting(BASE_routing):
                 for pkt in self.drone.all_packets():
                     avg_packets += self.simulator.cur_step - pkt.time_step_creation
                 avg_packets = avg_packets // self.drone.buffer_length()
-                if avg_packets < 500:
+                if avg_packets < self.AVG_PCKT_THRESHOLD:
                     next_target_depot = min(first_depot_distance_time_next, second_depot_distance_time_next)
                     total_time = next_target_depot + next_target_distance_time
-                    if avg_packets + total_time < 1000:
+                    if avg_packets + total_time < self.TOTAL_TIME_AVG_PCKT_THRESHOLD:
                         action = None
                     else:
                         action = self.calculate_best_depot(self.drone.coords, self.drone.next_target(), [first_depot_coordinates, second_depot_coordinates])
@@ -244,3 +248,25 @@ class AiTwoRouting(BASE_routing):
         print("max q table", self.max_q_table_count)
         print("neighbors 0 ", self.neighbors_0)
         print("Max Exploration count", self.exploration_count)
+
+        import os
+        import json
+
+        assert os.path.isdir("data"), "Can not save metrics, data directory does not exist"
+
+        with open(os.path.join("data", "metrics.json"), "a+") as f:
+
+            obj = {
+                "epsilon": self.EPSILON,		                                    ## list(np.arange(0.02, 0.8, 0.3)) + [0.8]
+                "avg_pck_threshold": self.AVG_PCKT_THRESHOLD,                       ## np.arange(400, 600.1, 100)
+                "total_time_avg_pck_threshold": self.TOTAL_TIME_AVG_PCKT_THRESHOLD, ## np.arange(800, 1200.1, 200)
+                "n-drones": self.simulator.n_drones,
+                "seed": self.simulator.seed,
+                "score": self.simulator.score(),
+            }
+
+            print(obj)
+
+            json.dump(obj, f)
+
+            f.write("\n")
