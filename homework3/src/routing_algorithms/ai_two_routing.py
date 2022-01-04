@@ -263,6 +263,7 @@ class AiTwoRouting(BASE_routing):
                 "n-drones": self.simulator.n_drones,
                 "seed": self.simulator.seed,
                 "score": self.simulator.score(),
+                "sweep_path": config.SWEEP_PATH
             }
 
             print(obj)
