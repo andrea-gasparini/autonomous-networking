@@ -127,7 +127,7 @@ class ChannelError(Enum):
 
 
 ROUTING_ALGORITHM_W_FEEDBACK = ["AI", "AITWO", "TESTAI", "HW2ROUTING", "TestAlgo", "GRADIENTAI", "AITHREE", "AITWOWITHOUTSPEED"]
-ROUTING_ALGORITHM = RoutingAlgorithm.AITWOWITHOUTSPEED
+ROUTING_ALGORITHM = RoutingAlgorithm.AITWO
 CHANNEL_ERROR_TYPE = ChannelError.ON_DEVICE
 
 COMMUNICATION_P_SUCCESS = 1   # float: probability to have success in a communication.

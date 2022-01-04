@@ -23,8 +23,8 @@ def run_process(process):
 if __name__ == "__main__":
     # execution
     ALGO_TO_RUN = ["AITWO"] # run algorithms
-    NDRONES = [2, 15, 25, 40] # 15, 20, 30, 40
-    NSEEDS = 4  # 30
+    NDRONES = [2, 10, 20, 30, 40] # 15, 20, 30, 40
+    NSEEDS = 5  # 30
     run_in_parallel(ALGO_TO_RUN, NDRONES, NSEEDS, NUM_CORE, CODE_TO_RUN)
 
     # plot
