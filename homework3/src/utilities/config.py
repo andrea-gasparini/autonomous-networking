@@ -10,6 +10,7 @@ from src.routing_algorithms.ai_routing import AIRouting
 from src.routing_algorithms.testalgo import TestAlgo
 from src.routing_algorithms.gradient_bandit_ai import GradientBanditAI
 from src.routing_algorithms.ai_three_routing import AIThreeRouting
+from src.routing_algorithms.ai_two_routing_without_speed import AiTwoRoutingWithoutSpeed
 
 from enum import Enum
 
@@ -33,7 +34,7 @@ Attributes that one needs tweak often are tagged with # ***
 # ----------------------------------------------------------------------------------
 
 # ----------------------- PATH DRONES -----------------------------------------#
-SWEEP_PATH = False
+SWEEP_PATH = True
 LENGHT_METERS_TOUR = 30000 # (DO NOT CHANGE)
 HOVERING = 600  # int : steps of hovering
 CIRCLE_PATH = False # bool: whether to use cirlce paths around the depot
@@ -108,6 +109,7 @@ class RoutingAlgorithm(Enum):
     TestAlgo = TestAlgo
     GRADIENTAI = GradientBanditAI
     AITHREE = AIThreeRouting
+    AITWOWITHOUTSPEED = AiTwoRoutingWithoutSpeed
     
     @staticmethod
     def keylist():
@@ -124,8 +126,8 @@ class ChannelError(Enum):
         return list(map(lambda c: c.name, ChannelError))
 
 
-ROUTING_ALGORITHM_W_FEEDBACK = ["AI", "AITWO", "TESTAI", "HW2ROUTING", "TestAlgo", "GRADIENTAI", "AITHREE"]
-ROUTING_ALGORITHM = RoutingAlgorithm.AITHREE
+ROUTING_ALGORITHM_W_FEEDBACK = ["AI", "AITWO", "TESTAI", "HW2ROUTING", "TestAlgo", "GRADIENTAI", "AITHREE", "AITWOWITHOUTSPEED"]
+ROUTING_ALGORITHM = RoutingAlgorithm.AITWOWITHOUTSPEED
 CHANNEL_ERROR_TYPE = ChannelError.ON_DEVICE
 
 COMMUNICATION_P_SUCCESS = 1   # float: probability to have success in a communication.

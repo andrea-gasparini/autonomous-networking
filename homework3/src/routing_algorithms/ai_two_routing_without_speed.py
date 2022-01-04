@@ -1,4 +1,3 @@
-
 import numpy as np
 from src.utilities import utilities as util
 from src.routing_algorithms.BASE_routing import BASE_routing
@@ -8,7 +7,7 @@ from typing import List, Tuple, Dict, Union, Set, Literal
 from src.entities.uav_entities import Drone, DataPacket
 import math
 
-class AiTwoRouting(BASE_routing):
+class AiTwoRoutingWithoutSpeed(BASE_routing):
     def __init__(self, drone: Drone, simulator):
         BASE_routing.__init__(self, drone, simulator)
         # random generator
@@ -22,6 +21,14 @@ class AiTwoRouting(BASE_routing):
         self.max_q_table_count = 0
         self.neighbors_0 = 0
         self.exploration_count = 0
+        self.decay = 0.6
+        self.droprate = 10
+        self.iterations = 0
+        self.alpha = 0.6
+
+    def calculate_lr(self):
+        """ Calculate learning rate """
+        return self.alpha * self.decay ** (math.floor((1 + self.iterations) / self.droprate))
 
     def feedback(self, drone, id_event, delay, outcome, depot_index=None):
         """ return a possible feedback, if the destination drone has received the packet """
@@ -56,7 +63,7 @@ class AiTwoRouting(BASE_routing):
             else:
                 reward = 2 / delay
 
-            self.q_table[cell_index][action_id] += 0.4 * (reward + 0.6 * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action_id])
+            self.q_table[cell_index][action_id] += self.calculate_lr() * (reward + 0.6 * (max(self.q_table[next_cell_index])) - self.q_table[cell_index][action_id])
             
             del self.taken_actions[id_event]
 
@@ -79,7 +86,7 @@ class AiTwoRouting(BASE_routing):
 
         min_distance_idx = np.argmin(min_distance_list)
 
-        if min_distance_idx >= 2 and min_distance_list[min_distance_idx] < 550 and min_distance_list[min_distance_idx] > 200:
+        if min_distance_idx >= 2 and min_distance_list[min_distance_idx] < 550:
             # min distance is first_depot_distance or second_depot_distance
             # move to the the nearest depot
             return -1 if first_depot_distance < second_depot_distance else -2
@@ -87,8 +94,7 @@ class AiTwoRouting(BASE_routing):
             # min distance is first_depot_distance_next or second_depot_distance_next
             # do not transmit the packet and move to the next target
             return None
-        
-        
+
 
     def relay_selection(self, opt_neighbors, pkd):
         """ arg min score  -> geographical approach, take the drone closest to the depot """
@@ -107,14 +113,7 @@ class AiTwoRouting(BASE_routing):
             self.q_table[cell_index] = [0 for i in range(self.simulator.n_drones + len(self.simulator.depot.list_of_coords))]
 
         action = None
-
-        # self.drone.history_path (which waypoint I traversed. We assume the mission is repeated)
-        # self.drone.residual_energy (that tells us when I'll come back to the depot).
-        #  .....
-        #for hpk, drone_instance in opt_neighbors:
-            #print(hpk)
-        #    continue
-
+        self.iterations += 1
 
         neighbors_drones: Set[Drone] = {drone[1] for drone in opt_neighbors}
 
@@ -140,7 +139,7 @@ class AiTwoRouting(BASE_routing):
 
             first_depot_distance_time_next = first_depot_distance_next / self.drone.speed
             second_depot_distance_time_next = second_depot_distance_next / self.drone.speed
-            
+
 
             if len(neighbors_drones) == 0 and self.drone.buffer_length() > 0:
                 # mean time packets
@@ -170,45 +169,44 @@ class AiTwoRouting(BASE_routing):
                 # move routing, speed, buffer length, distanza dai depot, next target
                 neighbors_drones_q_table = [self.q_table[cell_index][drone.identifier] for drone in neighbors_drones]
                 max_value = max(neighbors_drones_q_table)
+                
                 if max_value == 0:
                     self.max_value_count += 1
-                    my_score = self.drone.speed + (math.log(self.drone.buffer_length()) if self.drone.buffer_length() > 0 else 0)
-                    drone_score = my_score
                     
+                    drone_score = float('inf')
+                    my_score = 0
                     for drone in neighbors_drones:
-                        tmp_drone_score = drone.speed + (math.log(drone.buffer_length()) if drone.buffer_length() > 0 else 0)
-                        tmp_my_score = my_score
+                        tmp_drone_score = 0
+                        tmp_my_score = 0
+
+                        if drone.come_back_to_mission:
+                            continue
+
                         if not drone.move_routing:
                             drone_first_depot_distance = util.euclidean_distance(drone.next_target(), first_depot_coordinates)
                             drone_second_depot_distance = util.euclidean_distance(drone.next_target(), second_depot_coordinates)
-                            #if drone_first_depot_distance < drone_second_depot_distance:
-                            #    tmp_drone_score /= drone_first_depot_distance
-                            #else:
-                            #    tmp_drone_score /= drone_second_depot_distance
                         else:
                             drone_first_depot_distance = util.euclidean_distance(drone.coords, first_depot_coordinates)
                             drone_second_depot_distance = util.euclidean_distance(drone.coords, second_depot_coordinates)
 
                         if drone_first_depot_distance < drone_second_depot_distance:
-                            tmp_drone_score /= drone_first_depot_distance
-                            tmp_my_score /= first_depot_distance + 0.01 if drone.move_routing else first_depot_distance_next + 0.01 
+                            tmp_drone_score = drone_first_depot_distance / drone.speed
+                            tmp_my_score = first_depot_distance / self.drone.speed if drone.move_routing else first_depot_distance_next / self.drone.speed
                         else:
-                            tmp_drone_score /= drone_second_depot_distance
-                            tmp_my_score /= second_depot_distance + 0.01 if drone.move_routing else second_depot_distance_next + 0.01 
-                        
-                        #if self.drone.identifier == 8 and self.drone.move_routing and drone.identifier == 0:
-                        #    print(self.drone, drone, tmp_drone_score, tmp_my_score, self.drone.speed, first_depot_distance_next)
-                            
+                            tmp_drone_score = drone_second_depot_distance / drone.speed
+                            tmp_my_score = second_depot_distance / self.drone.speed if drone.move_routing else second_depot_distance_next / self.drone.speed
+
+                        my_score = tmp_my_score
                         if drone.move_routing:
-                            if tmp_drone_score > tmp_my_score:
+                            if tmp_drone_score < tmp_my_score:
                                 drone_score = tmp_drone_score
-                                action = drone 
+                                action = drone
                             
-                        if tmp_drone_score >= drone_score:
+                        if tmp_drone_score <= drone_score:
                             drone_score = tmp_drone_score
                             action = drone
                     
-                    if my_score == drone_score:
+                    if my_score <= drone_score:
                         action = self.calculate_best_depot(self.drone.coords, self.drone.next_target(), [first_depot_coordinates, second_depot_coordinates])
                         #if first_depot_distance < second_depot_distance:
                         #    action = -1
