@@ -15,10 +15,11 @@ def load_data(file: str):
 			avg_pck_threshold = str(dict_line["avg_pck_threshold"])
 			total_time_avg_pck_threshold = str(dict_line["total_time_avg_pck_threshold"])
 
-			if (k := (n_drones, epsilon, avg_pck_threshold, total_time_avg_pck_threshold)) not in data:
-				data[k] = []
+			if epsilon == "0.02":
+				if (k := (n_drones, epsilon, avg_pck_threshold, total_time_avg_pck_threshold)) not in data:
+					data[k] = []
 
-			data[k].append((dict_line["score"], dict_line["seed"]))
+				data[k].append((dict_line["score"], dict_line["seed"]))
 
 	for k, value in data.items():
 		data[k] = sum(list(map(lambda x: x[0], data[k]))) / len(data[k])

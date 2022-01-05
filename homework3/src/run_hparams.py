@@ -2,6 +2,7 @@ import os
 import argparse
 from typing import Generator, Dict
 from rich.console import Console
+import time
 
 
 c = Console()
@@ -29,6 +30,7 @@ class RunHParmasTuning:
         }
 
         for epsilon, avg_pkct, tt_avg_pckt in self._do_combinations():
+            start = time.time()
             c.print(f"\nNEW RUN: epsilon={epsilon}, avg_pckt={avg_pkct}, total_time_avg_pckt={tt_avg_pckt}\n")
 
             with open(self.routing_algo, mode="r") as fstream:
@@ -44,6 +46,8 @@ class RunHParmasTuning:
                 wstream.write(new_file_content)
             
             os.system("python src/experiments/run_exp.py")
+            end = time.time()
+            c.print(f"\nFINISHED RUN: epsilon={epsilon}, avg_pckt={avg_pkct}, total_time_avg_pckt={tt_avg_pckt} in TIME: {end - start}\n")
 
 
 def main() -> None:

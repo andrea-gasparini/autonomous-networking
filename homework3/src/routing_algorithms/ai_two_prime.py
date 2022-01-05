@@ -10,7 +10,7 @@ import math
 
 class AiTwoRoutingPrime(BASE_routing):
 
-    EPSILON = 0.8
+    EPSILON = 0.32
 
     AVG_PCKT_THRESHOLD = 800
 
