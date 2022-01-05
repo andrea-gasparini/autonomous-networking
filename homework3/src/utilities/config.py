@@ -11,6 +11,7 @@ from src.routing_algorithms.testalgo import TestAlgo
 from src.routing_algorithms.gradient_bandit_ai import GradientBanditAI
 from src.routing_algorithms.ai_three_routing import AIThreeRouting
 from src.routing_algorithms.ai_two_routing_without_speed import AiTwoRoutingWithoutSpeed
+from src.routing_algorithms.ai_two_prime import AiTwoRoutingPrime
 
 from enum import Enum
 
@@ -110,6 +111,7 @@ class RoutingAlgorithm(Enum):
     GRADIENTAI = GradientBanditAI
     AITHREE = AIThreeRouting
     AITWOWITHOUTSPEED = AiTwoRoutingWithoutSpeed
+    AITWOPRIME = AiTwoRoutingPrime
     
     @staticmethod
     def keylist():
@@ -126,8 +128,8 @@ class ChannelError(Enum):
         return list(map(lambda c: c.name, ChannelError))
 
 
-ROUTING_ALGORITHM_W_FEEDBACK = ["AI", "AITWO", "TESTAI", "HW2ROUTING", "TestAlgo", "GRADIENTAI", "AITHREE", "AITWOWITHOUTSPEED"]
-ROUTING_ALGORITHM = RoutingAlgorithm.AITWO
+ROUTING_ALGORITHM_W_FEEDBACK = ["AI", "AITWO", "TESTAI", "HW2ROUTING", "TestAlgo", "GRADIENTAI", "AITHREE", "AITWOWITHOUTSPEED", "AITWOPRIME"]
+ROUTING_ALGORITHM = RoutingAlgorithm.AITWOPRIME
 CHANNEL_ERROR_TYPE = ChannelError.ON_DEVICE
 
 COMMUNICATION_P_SUCCESS = 1   # float: probability to have success in a communication.

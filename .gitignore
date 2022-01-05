@@ -4,5 +4,5 @@ homework*/data/experiments/*
 __pycache__
 .idea
 .DS_Store
-
+an_venv
 !.gitkeep

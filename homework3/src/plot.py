@@ -33,7 +33,7 @@ def plot(data) -> None:
 	dict_min_value_fe_drone = {}
 	dict_fe_tuning = dict()
 	for (n_drone, epsilon, avg_pck, total_time_avg_pck), score in data.items():
-		if not n_drone in n_drones:
+		if not n_drone in n_drones and n_drone != "5":
 			n_drones.append(n_drone)
 
 		if n_drone not in dict_min_value_fe_drone:
