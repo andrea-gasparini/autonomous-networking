@@ -12,9 +12,9 @@ class AiTwoRouting(BASE_routing):
 
     EPSILON = 0.02
 
-    AVG_PCKT_THRESHOLD = 500
+    AVG_PCKT_THRESHOLD = 400
 
-    TOTAL_TIME_AVG_PCKT_THRESHOLD = 1000
+    TOTAL_TIME_AVG_PCKT_THRESHOLD = 1200
 
     def __init__(self, drone: Drone, simulator):
         BASE_routing.__init__(self, drone, simulator)

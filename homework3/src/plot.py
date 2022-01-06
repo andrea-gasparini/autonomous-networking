@@ -15,11 +15,10 @@ def load_data(file: str):
 			avg_pck_threshold = str(dict_line["avg_pck_threshold"])
 			total_time_avg_pck_threshold = str(dict_line["total_time_avg_pck_threshold"])
 
-			if epsilon == "0.02":
-				if (k := (n_drones, epsilon, avg_pck_threshold, total_time_avg_pck_threshold)) not in data:
-					data[k] = []
+			if (k := (n_drones, epsilon, avg_pck_threshold, total_time_avg_pck_threshold)) not in data:
+				data[k] = []
 
-				data[k].append((dict_line["score"], dict_line["seed"]))
+			data[k].append((dict_line["score"], dict_line["seed"]))
 
 	for k, value in data.items():
 		data[k] = sum(list(map(lambda x: x[0], data[k]))) / len(data[k])
@@ -34,7 +33,7 @@ def plot(data) -> None:
 	dict_min_value_fe_drone = {}
 	dict_fe_tuning = dict()
 	for (n_drone, epsilon, avg_pck, total_time_avg_pck), score in data.items():
-		if not n_drone in n_drones and n_drone != "5":
+		if not n_drone in n_drones:
 			n_drones.append(n_drone)
 
 		if n_drone not in dict_min_value_fe_drone:
@@ -51,7 +50,7 @@ def plot(data) -> None:
 	colors = {v:k for k, v in cols.get_named_colors_mapping().items()}
 	for (e, ap, ttap), v in dict_fe_tuning.items():
 		scores = [v[x] for x in n_drones]
-		p, = plt.plot(n_drones, scores, label=f"epsilon={e}, avg_pckt={ap}, tot_time_avg_pckt={ttap}")
+		p, = plt.plot(n_drones, scores) # , label=f"epsilon={e}, avg_pckt={ap}, tot_time_avg_pckt={ttap}")
 		print(f"{colors[p.get_color()]} - (epsilon={e}, avg_pckt={ap}, tot_time_avg_pckt={ttap})")
 
 	plt.xlabel("Number of drones")
